@@ -1,4 +1,4 @@
-﻿services:
+services:
   - type: web
     name: sweets-snacks-home-delivery-3
     env: python
@@ -9,6 +9,7 @@
       python manage.py collectstatic --no-input
       python manage.py migrate
       python manage.py check
+      python set_telegram_webhook.py
 
     startCommand: |
       gunicorn config.asgi:application -k uvicorn.workers.UvicornWorker --bind 0.0.0.0:$PORT
