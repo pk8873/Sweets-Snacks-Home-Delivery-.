@@ -299,8 +299,6 @@ if not DEBUG:
     CSRF_COOKIE_SECURE = True
     SECURE_HSTS_SECONDS = 31536000
     SECURE_HSTS_INCLUDE_SUBDOMAINS = True
-<<<<<<< HEAD
     SECURE_HSTS_PRELOAD = True
-=======
-    SECURE_HSTS_PRELOAD = True
->>>>>>> 3947ab1 (Configure Telegram webhook and Render deployment)
+
+# Configure Telegram webhook and Render deployment
