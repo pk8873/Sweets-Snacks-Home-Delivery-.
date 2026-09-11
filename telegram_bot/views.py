@@ -33,7 +33,7 @@ async def telegram_webhook(request):
         )
 
     # ========================================================
-    # SECRET TOKEN
+    # SECRET
     # ========================================================
 
     configured_secret = getattr(
@@ -81,7 +81,7 @@ async def telegram_webhook(request):
     ):
 
         logger.exception(
-            "Invalid Telegram webhook JSON."
+            "Invalid webhook JSON."
         )
 
         return JsonResponse(
@@ -93,7 +93,7 @@ async def telegram_webhook(request):
         )
 
     # ========================================================
-    # TELEGRAM UPDATE
+    # PROCESS
     # ========================================================
 
     try:
@@ -110,7 +110,7 @@ async def telegram_webhook(request):
         if update is None:
 
             logger.error(
-                "Telegram returned invalid update."
+                "Invalid Telegram update."
             )
 
             return JsonResponse(
@@ -122,34 +122,29 @@ async def telegram_webhook(request):
             )
 
         logger.info(
-            "Telegram update received: update_id=%s",
+            "TELEGRAM UPDATE RECEIVED: %s",
             update.update_id,
         )
-
-        # ====================================================
-        # PROCESS UPDATE DIRECTLY
-        # ====================================================
 
         await application.process_update(
             update
         )
 
         logger.info(
-            "Telegram update processed: update_id=%s",
+            "TELEGRAM UPDATE PROCESSED: %s",
             update.update_id,
         )
 
         return JsonResponse(
             {
-                "status": "ok",
-            },
-            status=200,
+                "status": "ok"
+            }
         )
 
     except Exception:
 
         logger.exception(
-            "Telegram webhook processing failed."
+            "TELEGRAM WEBHOOK FAILED."
         )
 
         return JsonResponse(

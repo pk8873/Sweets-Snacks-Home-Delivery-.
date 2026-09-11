@@ -23,6 +23,7 @@ from .views import health_check
 
 
 urlpatterns = [
+
     path(
         "admin/",
         admin.site.urls,
@@ -36,7 +37,9 @@ urlpatterns = [
 
     path(
         "telegram/",
-        include("telegram_bot.urls"),
+        include(
+            "telegram_bot.urls"
+        ),
     ),
 ]
 

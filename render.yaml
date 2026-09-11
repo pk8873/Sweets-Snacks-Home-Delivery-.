@@ -1,33 +1,14 @@
 services:
   - type: web
-    name: sweet-snacks-bot
-    runtime: python
+    name: sweets-delivery-bot
+    env: python
     plan: free
-
-    buildCommand: ./build.sh
-
-    startCommand: gunicorn config.wsgi:application --bind 0.0.0.0:$PORT
-
-    healthCheckPath: /admin/login/
-
+    buildCommand: pip install -r requirements.txt
+    startCommand: python main.py
     envVars:
-      - key: PYTHON_VERSION
-        value: 3.14.5
-
-      - key: SECRET_KEY
-        generateValue: true
-
-      - key: DEBUG
-        value: "False"
-
-      - key: DATABASE_URL
+      - key: BOT_TOKEN
         sync: false
-
-      - key: TELEGRAM_BOT_TOKEN
-        sync: false
-
-      - key: PAYMENT_KEY_ID
-        sync: false
-
-      - key: PAYMENT_KEY_SECRET
-        sync: false
+      - key: WEBHOOK_URL
+        fromService:
+          name: sweets-delivery-bot
+          property: url
