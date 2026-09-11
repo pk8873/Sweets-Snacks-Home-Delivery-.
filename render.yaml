@@ -27,5 +27,8 @@ services:
       - key: TELEGRAM_WEBHOOK_SECRET
         sync: false
 
+      - key: TELEGRAM_WEBHOOK_URL
+        value: "https://sweets-snacks-home-delivery-3.onrender.com/telegram/webhook/"
+
       - key: DATABASE_URL
         sync: false
