@@ -2,6 +2,7 @@ services:
   - type: web
     name: sweet-snacks-bot
     runtime: python
+    plan: free
 
     buildCommand: ./build.sh
 
@@ -20,9 +21,7 @@ services:
         value: "False"
 
       - key: DATABASE_URL
-        fromDatabase:
-          name: sweet-snacks-db
-          property: connectionString
+        sync: false
 
       - key: TELEGRAM_BOT_TOKEN
         sync: false
@@ -32,9 +31,3 @@ services:
 
       - key: PAYMENT_KEY_SECRET
         sync: false
-
-
-databases:
-  - name: sweet-snacks-db
-    databaseName: sweet_snacks
-    user: sweet_snacks_user
