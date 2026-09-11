@@ -1,6 +1,7 @@
 import logging
 
 from asgiref.sync import sync_to_async
+from django.db import transaction
 from django.conf import settings
 
 from telegram import (
@@ -18,40 +19,36 @@ from telegram.ext import (
     filters,
 )
 
-from cart.models import CartItem
+from cart.models import Cart, CartItem
 from customers.models import Customer
+from products.models import Category, Favorite, Product
+from orders.models import Order
 from orders.services import (
     get_customer_orders,
     get_order_details,
+    build_order_tracking,
 )
-from products.models import Category, Favorite, Product
 
 
 logger = logging.getLogger(__name__)
 
 _application = None
 _application_initialized = False
+_application_started = False
 
 
 # ============================================================
 # TELEGRAM APPLICATION
 # ============================================================
 
+
 def get_telegram_application():
     global _application
 
     if _application is None:
-
-        token = getattr(
-            settings,
-            "TELEGRAM_BOT_TOKEN",
-            "",
-        ).strip()
-
+        token = getattr(settings, "TELEGRAM_BOT_TOKEN", "").strip()
         if not token:
-            raise RuntimeError(
-                "TELEGRAM_BOT_TOKEN is not configured."
-            )
+            raise RuntimeError("TELEGRAM_BOT_TOKEN is not configured.")
 
         _application = (
             Application.builder()
@@ -59,31 +56,26 @@ def get_telegram_application():
             .updater(None)
             .build()
         )
-
         register_handlers(_application)
-
-        logger.info(
-            "Telegram application created."
-        )
+        logger.info("Telegram application created and handlers registered.")
 
     return _application
 
 
 async def initialize_telegram_application():
-
-    global _application_initialized
+    global _application_initialized, _application_started
 
     application = get_telegram_application()
 
     if not _application_initialized:
-
         await application.initialize()
-
         _application_initialized = True
+        logger.info("Telegram application initialized.")
 
-        logger.info(
-            "Telegram application initialized."
-        )
+    if not _application_started:
+        await application.start()
+        _application_started = True
+        logger.info("Telegram application background processor started.")
 
     return application
 
@@ -92,510 +84,286 @@ async def initialize_telegram_application():
 # CUSTOMER
 # ============================================================
 
-@sync_to_async
-def get_or_create_customer(telegram_user):
 
-    customer, created = (
-        Customer.objects.get_or_create(
-            telegram_id=str(
-                telegram_user.id
-            ),
-            defaults={
-                "name": (
-                    telegram_user.full_name
-                    or telegram_user.username
-                    or "Customer"
-                ),
-                "language": "",
-            },
-        )
+@sync_to_async
+
+def get_or_create_customer(telegram_user):
+    customer, created = Customer.objects.get_or_create(
+        telegram_user_id=telegram_user.id,
+        defaults={
+            "telegram_username": telegram_user.username or "",
+            "name": telegram_user.full_name or "Customer",
+        },
     )
 
-    if not customer.name:
+    changed = False
 
-        customer.name = (
-            telegram_user.full_name
-            or telegram_user.username
-            or "Customer"
-        )
+    if telegram_user.username and customer.telegram_username != telegram_user.username:
+        customer.telegram_username = telegram_user.username
+        changed = True
 
-        customer.save(
-            update_fields=["name"]
-        )
+    if telegram_user.full_name and customer.name != telegram_user.full_name:
+        customer.name = telegram_user.full_name
+        changed = True
+
+    if changed:
+        customer.save(update_fields=["telegram_username", "name", "updated_at"])
 
     return customer
 
 
 @sync_to_async
-def get_customer(telegram_user):
 
+def get_customer(telegram_user_id):
     return Customer.objects.filter(
-        telegram_id=str(
-            telegram_user.id
-        )
+        telegram_user_id=telegram_user_id
     ).first()
 
 
 @sync_to_async
-def update_customer_language(
-    customer,
-    language,
-):
 
+def update_customer_language(telegram_user_id, language):
+    customer = Customer.objects.get(
+        telegram_user_id=telegram_user_id
+    )
     customer.language = language
-
-    customer.save(
-        update_fields=["language"]
-    )
-
+    customer.save(update_fields=["language", "updated_at"])
     return customer
-
-
-# ============================================================
-# LANGUAGE
-# ============================================================
-
-def language_keyboard():
-
-    return InlineKeyboardMarkup(
-        [
-            [
-                InlineKeyboardButton(
-                    "🇮🇳 हिंदी",
-                    callback_data="language_hi",
-                ),
-                InlineKeyboardButton(
-                    "🇬🇧 English",
-                    callback_data="language_en",
-                ),
-            ]
-        ]
-    )
-
-
-async def send_language_selection(update):
-
-    message = update.effective_message
-
-    if not message:
-        return
-
-    await message.reply_text(
-        "🙏 Welcome to Sweet Snacks "
-        "Home Delivery!\n\n"
-        "Please select your language:",
-        reply_markup=language_keyboard(),
-    )
 
 
 # ============================================================
 # MENUS
 # ============================================================
 
-def hindi_menu():
 
+def language_keyboard():
+    return InlineKeyboardMarkup([
+        [
+            InlineKeyboardButton("🇮🇳 हिंदी", callback_data="language_hi"),
+            InlineKeyboardButton("🇬🇧 English", callback_data="language_en"),
+        ]
+    ])
+
+
+def hindi_menu():
     return ReplyKeyboardMarkup(
         [
-            [
-                "🛍️ मिठाई / Snacks",
-                "🔎 Search",
-            ],
-            [
-                "🛒 Cart",
-                "❤️ Favorites",
-            ],
-            [
-                "📦 My Orders",
-                "📍 Address",
-            ],
-            [
-                "🌐 English",
-                "❓ Help",
-            ],
+            ["🛍 दुकान देखें", "🔎 Search"],
+            ["🛒 मेरी Cart", "❤️ Favorites"],
+            ["📦 मेरे Orders", "📍 मेरा Address"],
+            ["🌐 Language", "☎️ Help"],
         ],
         resize_keyboard=True,
+        is_persistent=True,
     )
 
 
 def english_menu():
-
     return ReplyKeyboardMarkup(
         [
-            [
-                "🛍️ Shop",
-                "🔎 Search",
-            ],
-            [
-                "🛒 Cart",
-                "❤️ Favorites",
-            ],
-            [
-                "📦 My Orders",
-                "📍 Address",
-            ],
-            [
-                "🌐 हिंदी",
-                "❓ Help",
-            ],
+            ["🛍 Shop", "🔎 Search"],
+            ["🛒 My Cart", "❤️ Favorites"],
+            ["📦 My Orders", "📍 My Address"],
+            ["🌐 Language", "☎️ Help"],
         ],
         resize_keyboard=True,
+        is_persistent=True,
     )
 
 
-async def send_hindi_menu(update):
+async def send_language_selection(update):
+    if update.effective_message:
+        await update.effective_message.reply_text(
+            "👋 Welcome to Sweet & Snacks!\n\n"
+            "Please select your language.\n"
+            "कृपया अपनी भाषा चुनें।",
+            reply_markup=language_keyboard(),
+        )
 
-    message = update.effective_message
 
-    if not message:
+async def send_menu(update, customer):
+    if not update.effective_message:
         return
 
-    await message.reply_text(
-        "🙏 स्वागत है!\n\n"
-        "🍬 Sweet Snacks Home Delivery\n\n"
-        "नीचे दिए गए विकल्प में से चुनें:",
-        reply_markup=hindi_menu(),
-    )
-
-
-async def send_english_menu(update):
-
-    message = update.effective_message
-
-    if not message:
-        return
-
-    await message.reply_text(
-        "🙏 Welcome!\n\n"
-        "🍬 Sweet Snacks Home Delivery\n\n"
-        "Please choose an option:",
-        reply_markup=english_menu(),
-    )
+    if customer.language == "en":
+        await update.effective_message.reply_text(
+            f"🍬 Welcome, {customer.name}!\n\nWhat would you like to do?",
+            reply_markup=english_menu(),
+        )
+    else:
+        await update.effective_message.reply_text(
+            f"🍬 Sweet & Snacks में आपका स्वागत है, {customer.name}!\n\nआज क्या करना चाहते हैं?",
+            reply_markup=hindi_menu(),
+        )
 
 
 # ============================================================
 # START
 # ============================================================
 
-async def start(
-    update: Update,
-    context: ContextTypes.DEFAULT_TYPE,
-):
 
+async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     try:
-
-        if not update.effective_user:
+        user = update.effective_user
+        if not user:
             return
 
-        logger.info(
-            "START received from Telegram user=%s",
-            update.effective_user.id,
-        )
-
-        customer = await get_or_create_customer(
-            update.effective_user
-        )
+        logger.info("START received from telegram_user_id=%s", user.id)
+        customer = await get_or_create_customer(user)
 
         if not customer.language:
-
-            await send_language_selection(
-                update
-            )
-
+            await send_language_selection(update)
             return
 
-        if customer.language == "hi":
-
-            await send_hindi_menu(
-                update
-            )
-
-        else:
-
-            await send_english_menu(
-                update
-            )
+        await send_menu(update, customer)
 
     except Exception:
-
-        logger.exception(
-            "START handler failed."
-        )
-
+        logger.exception("START handler failed.")
         if update.effective_message:
-
             await update.effective_message.reply_text(
-                "❌ Something went wrong. "
-                "Please try again."
+                "❌ Bot backend error. Please try /start again."
             )
 
 
 # ============================================================
-# CATEGORIES
+# CATEGORIES / PRODUCTS
 # ============================================================
 
+
 @sync_to_async
+
 def get_categories():
+    return list(Category.objects.filter(active=True).order_by("name"))
 
-    return list(
-        Category.objects.filter(
-            is_active=True
-        ).order_by("name")
-    )
-
-
-def category_keyboard(categories):
-
-    buttons = []
-
-    for category in categories:
-
-        buttons.append(
-            [
-                InlineKeyboardButton(
-                    category.name,
-                    callback_data=(
-                        f"category_{category.id}"
-                    ),
-                )
-            ]
-        )
-
-    buttons.append(
-        [
-            InlineKeyboardButton(
-                "🏠 Main Menu",
-                callback_data="main_menu",
-            )
-        ]
-    )
-
-    return InlineKeyboardMarkup(
-        buttons
-    )
-
-
-async def show_categories(update):
-
-    categories = await get_categories()
-
-    message = update.effective_message
-
-    if not message:
-        return
-
-    if not categories:
-
-        await message.reply_text(
-            "❌ No categories available right now."
-        )
-
-        return
-
-    await message.reply_text(
-        "🛍️ Please select a category:",
-        reply_markup=category_keyboard(
-            categories
-        ),
-    )
-
-
-# ============================================================
-# PRODUCTS
-# ============================================================
 
 @sync_to_async
-def get_products_by_category(category_id):
 
+def get_category_products(category_id):
     return list(
         Product.objects.filter(
             category_id=category_id,
-            is_active=True,
-        ).order_by("name")
+            available=True,
+            stock__gt=0,
+        ).select_related("category").order_by("name")
     )
 
 
 @sync_to_async
+
 def get_product(product_id):
+    return Product.objects.filter(
+        id=product_id,
+        available=True,
+    ).first()
 
-    return (
-        Product.objects.filter(
-            id=product_id,
-            is_active=True,
+
+async def show_categories(update):
+    categories = await get_categories()
+    if not update.effective_message:
+        return
+
+    if not categories:
+        await update.effective_message.reply_text(
+            "📂 अभी कोई category उपलब्ध नहीं है।"
         )
-        .select_related("category")
-        .first()
+        return
+
+    buttons = []
+    for category in categories:
+        buttons.append([
+            InlineKeyboardButton(
+                f"📂 {category.name}",
+                callback_data=f"category_{category.id}",
+            )
+        ])
+
+    buttons.append([
+        InlineKeyboardButton("🏠 Main Menu", callback_data="main_menu")
+    ])
+
+    await update.effective_message.reply_text(
+        "🛍 कृपया category चुनें:",
+        reply_markup=InlineKeyboardMarkup(buttons),
     )
 
 
-def product_keyboard(product):
 
-    return InlineKeyboardMarkup(
+def product_keyboard(product_id, favorite=False):
+    favorite_text = "💔 Remove Favorite" if favorite else "❤️ Add Favorite"
+    return InlineKeyboardMarkup([
+        [InlineKeyboardButton("➕ Add to Cart", callback_data=f"addcart_{product_id}")],
         [
-            [
-                InlineKeyboardButton(
-                    "🛒 Add to Cart",
-                    callback_data=(
-                        f"addcart_{product.id}"
-                    ),
-                )
-            ],
-            [
-                InlineKeyboardButton(
-                    "❤️ Favorite",
-                    callback_data=(
-                        f"favorite_{product.id}"
-                    ),
-                )
-            ],
-            [
-                InlineKeyboardButton(
-                    "ℹ️ Details",
-                    callback_data=(
-                        f"details_{product.id}"
-                    ),
-                )
-            ],
-            [
-                InlineKeyboardButton(
-                    "⬅️ Categories",
-                    callback_data="categories",
-                )
-            ],
-        ]
-    )
+            InlineKeyboardButton(favorite_text, callback_data=f"favorite_{product_id}"),
+            InlineKeyboardButton("ℹ️ Details", callback_data=f"details_{product_id}"),
+        ],
+        [InlineKeyboardButton("⬅️ Categories", callback_data="categories")],
+    ])
 
 
-async def send_product_card(
-    update,
-    product,
-):
+@sync_to_async
 
-    message = update.effective_message
+def is_favorite(telegram_user_id, product_id):
+    return Favorite.objects.filter(
+        customer__telegram_user_id=telegram_user_id,
+        product_id=product_id,
+    ).exists()
 
+
+async def send_product_card(message, product, telegram_user_id):
     if not message:
         return
 
+    favorite = await is_favorite(telegram_user_id, product.id)
     text = (
         f"🍬 {product.name}\n\n"
+        f"{product.description or 'No description available.'}\n\n"
         f"💰 Price: ₹{product.price}\n"
+        f"📦 Stock: {product.stock}\n"
+        f"{'🟢 Available' if product.available and product.stock > 0 else '🔴 Out of Stock'}"
     )
 
-    description = getattr(
-        product,
-        "description",
-        None,
-    )
-
-    if description:
-
-        text += (
-            f"\n📝 {description}\n"
-        )
-
-    stock = getattr(
-        product,
-        "stock",
-        None,
-    )
-
-    if stock is not None:
-
-        text += (
-            f"\n📦 Stock: {stock}"
-        )
-
-    keyboard = product_keyboard(
-        product
-    )
+    keyboard = product_keyboard(product.id, favorite)
 
     try:
-
-        image_field = getattr(
-            product,
-            "image",
-            None,
-        )
-
-        if image_field:
-
-            image_url = image_field.url
-
-            if image_url:
-
-                await message.reply_photo(
-                    photo=image_url,
-                    caption=text,
-                    reply_markup=keyboard,
-                )
-
-                return
-
+        if product.image:
+            await message.reply_photo(
+                photo=product.image.url,
+                caption=text,
+                reply_markup=keyboard,
+            )
+            return
     except Exception:
+        logger.exception("Product image failed: product_id=%s", product.id)
 
-        logger.exception(
-            "Product image failed. product_id=%s",
-            product.id,
-        )
-
-    await message.reply_text(
-        text,
-        reply_markup=keyboard,
-    )
+    await message.reply_text(text, reply_markup=keyboard)
 
 
-async def show_category_products(
-    update,
-    category_id,
-):
-
-    products = await get_products_by_category(
-        category_id
-    )
-
+async def show_category_products(update, category_id):
+    products = await get_category_products(category_id)
     message = update.effective_message
-
     if not message:
         return
 
     if not products:
-
-        await message.reply_text(
-            "❌ No products found "
-            "in this category."
-        )
-
+        await message.reply_text("❌ इस category में अभी कोई product उपलब्ध नहीं है।")
         return
+
+    user = update.effective_user
+    await message.reply_text("🛍 Available Products:")
 
     for product in products:
-
-        await send_product_card(
-            update,
-            product,
-        )
+        await send_product_card(message, product, user.id)
 
 
-async def show_product_details(
-    update,
-    product_id,
-):
-
-    product = await get_product(
-        product_id
-    )
-
+async def show_product_details(update, product_id):
+    product = await get_product(product_id)
     if not product:
-
-        if update.effective_message:
-
-            await update.effective_message.reply_text(
-                "❌ Product not found."
-            )
-
+        await update.effective_message.reply_text("❌ Product नहीं मिला।")
         return
-
     await send_product_card(
-        update,
+        update.effective_message,
         product,
+        update.effective_user.id,
     )
 
 
@@ -603,148 +371,89 @@ async def show_product_details(
 # CART
 # ============================================================
 
-@sync_to_async
-def add_product_to_cart(
-    customer_id,
-    product_id,
-    quantity=1,
-):
-
-    from django.db import transaction
-
-    with transaction.atomic():
-
-        item, created = (
-            CartItem.objects
-            .select_for_update()
-            .get_or_create(
-                customer_id=customer_id,
-                product_id=product_id,
-                defaults={
-                    "quantity": quantity,
-                },
-            )
-        )
-
-        if not created:
-
-            item.quantity += quantity
-
-            item.save(
-                update_fields=[
-                    "quantity"
-                ]
-            )
-
-    return item
-
 
 @sync_to_async
-def get_cart_items(customer_id):
 
-    return list(
-        CartItem.objects.filter(
-            customer_id=customer_id
-        ).select_related(
-            "product"
-        )
+def add_product_to_cart(telegram_user_id, product_id):
+    customer = Customer.objects.get(telegram_user_id=telegram_user_id)
+    product = Product.objects.filter(id=product_id).first()
+
+    if not product:
+        return False, "not_found", 0
+    if not product.available:
+        return False, "unavailable", 0
+    if product.stock <= 0:
+        return False, "out_of_stock", 0
+
+    cart, _ = Cart.objects.get_or_create(customer=customer)
+
+    item, created = CartItem.objects.get_or_create(
+        cart=cart,
+        product=product,
+        defaults={
+            "quantity": 1,
+            "price": product.price,
+        },
     )
 
+    if not created:
+        if item.quantity >= product.stock:
+            return False, "stock_limit", item.quantity
+        item.quantity += 1
+        item.price = product.price
+        item.save()
+
+    return True, "added", item.quantity
+
 
 @sync_to_async
-def clear_cart(customer_id):
 
-    CartItem.objects.filter(
-        customer_id=customer_id
-    ).delete()
+def get_cart(telegram_user_id):
+    customer = Customer.objects.get(telegram_user_id=telegram_user_id)
+    cart, _ = Cart.objects.get_or_create(customer=customer)
+    items = list(cart.items.select_related("product").all())
+    return cart, items
 
 
-def cart_keyboard():
+@sync_to_async
 
-    return InlineKeyboardMarkup(
-        [
-            [
-                InlineKeyboardButton(
-                    "🛍️ Continue Shopping",
-                    callback_data="categories",
-                )
-            ],
-            [
-                InlineKeyboardButton(
-                    "🧹 Clear Cart",
-                    callback_data="clear_cart",
-                )
-            ],
-            [
-                InlineKeyboardButton(
-                    "💳 Checkout",
-                    callback_data="checkout",
-                )
-            ],
-        ]
-    )
+def clear_cart(telegram_user_id):
+    customer = Customer.objects.get(telegram_user_id=telegram_user_id)
+    CartItem.objects.filter(cart__customer=customer).delete()
 
 
 async def show_cart(update):
-
-    customer = await get_customer(
-        update.effective_user
-    )
-
     message = update.effective_message
-
-    if not message:
+    user = update.effective_user
+    if not message or not user:
         return
 
-    if not customer:
-
-        await message.reply_text(
-            "❌ Customer account not found. "
-            "Please use /start."
-        )
-
-        return
-
-    items = await get_cart_items(
-        customer.id
-    )
+    cart, items = await get_cart(user.id)
 
     if not items:
-
-        await message.reply_text(
-            "🛒 Your cart is empty."
-        )
-
+        await message.reply_text("🛒 आपकी Cart अभी खाली है।")
         return
 
+    lines = ["🛒 आपकी Cart\n"]
     total = 0
 
-    lines = [
-        "🛒 Your Cart\n"
-    ]
-
     for item in items:
-
-        subtotal = (
-            item.product.price
-            * item.quantity
-        )
-
+        subtotal = item.price * item.quantity
         total += subtotal
-
         lines.append(
             f"• {item.product.name}\n"
-            f"  Qty: {item.quantity}\n"
-            f"  ₹{subtotal}"
+            f"  {item.quantity} × ₹{item.price} = ₹{subtotal}"
         )
 
-    lines.append(
-        f"\n💰 Total: ₹{total}"
-    )
+    lines.append(f"\n💰 Subtotal: ₹{total}")
 
     await message.reply_text(
         "\n".join(lines),
-        reply_markup=cart_keyboard(),
+        reply_markup=InlineKeyboardMarkup([
+            [InlineKeyboardButton("🛍️ Continue Shopping", callback_data="categories")],
+            [InlineKeyboardButton("🧹 Clear Cart", callback_data="clear_cart")],
+            [InlineKeyboardButton("💳 Checkout", callback_data="checkout")],
+        ]),
     )
 
 
@@ -752,344 +461,242 @@ async def show_cart(update):
 # FAVORITES
 # ============================================================
 
-@sync_to_async
-def add_favorite(
-    customer_id,
-    product_id,
-):
-
-    Favorite.objects.get_or_create(
-        customer_id=customer_id,
-        product_id=product_id,
-    )
-
 
 @sync_to_async
-def get_favorites(customer_id):
 
+def toggle_favorite(telegram_user_id, product_id):
+    customer = Customer.objects.get(telegram_user_id=telegram_user_id)
+    product = Product.objects.filter(id=product_id).first()
+    if not product:
+        return False, "not_found"
+
+    favorite = Favorite.objects.filter(
+        customer=customer,
+        product=product,
+    ).first()
+
+    if favorite:
+        favorite.delete()
+        return False, "removed"
+
+    Favorite.objects.create(customer=customer, product=product)
+    return True, "added"
+
+
+@sync_to_async
+
+def get_favorite_products(telegram_user_id):
     return list(
         Favorite.objects.filter(
-            customer_id=customer_id
-        ).select_related(
-            "product"
-        )
+            customer__telegram_user_id=telegram_user_id
+        ).select_related("product")
     )
 
 
 async def show_favorites(update):
-
-    customer = await get_customer(
-        update.effective_user
-    )
-
     message = update.effective_message
-
-    if not message:
+    user = update.effective_user
+    if not message or not user:
         return
 
-    if not customer:
+    favorites = await get_favorite_products(user.id)
+    active = [f.product for f in favorites if f.product.available]
 
-        await message.reply_text(
-            "❌ Customer account not found."
-        )
-
+    if not active:
+        await message.reply_text("❤️ अभी आपकी Favorites खाली हैं।")
         return
 
-    favorites = await get_favorites(
-        customer.id
-    )
-
-    if not favorites:
-
-        await message.reply_text(
-            "❤️ You don't have any "
-            "favorite products yet."
-        )
-
-        return
-
-    await message.reply_text(
-        "❤️ Your Favorite Products:"
-    )
-
-    for favorite in favorites:
-
-        if favorite.product.is_active:
-
-            await send_product_card(
-                update,
-                favorite.product,
-            )
+    await message.reply_text(f"❤️ आपके {len(active)} favorite product(s):")
+    for product in active:
+        await send_product_card(message, product, user.id)
 
 
 # ============================================================
 # SEARCH
 # ============================================================
 
-@sync_to_async
-def search_products(search_text):
 
+@sync_to_async
+
+def search_products(search_text):
     return list(
         Product.objects.filter(
-            is_active=True,
+            available=True,
+            stock__gt=0,
             name__icontains=search_text,
         ).order_by("name")[:20]
     )
 
 
-async def show_search_results(
-    update,
-    search_text,
-):
-
-    products = await search_products(
-        search_text
-    )
-
+async def show_search_results(update, search_text):
+    products = await search_products(search_text)
     message = update.effective_message
-
     if not message:
         return
 
     if not products:
-
-        await message.reply_text(
-            "❌ No products found.\n\n"
-            "Try another product name."
-        )
-
+        await message.reply_text(f"🔎 '{search_text}' के लिए कोई product नहीं मिला।")
         return
 
-    await message.reply_text(
-        f"🔎 Search results for: "
-        f"{search_text}"
-    )
-
+    await message.reply_text(f"🔎 Search Results: {search_text}")
     for product in products:
-
-        await send_product_card(
-            update,
-            product,
-        )
-
-
-async def start_search(
-    update,
-    context,
-):
-
-    context.user_data[
-        "search_mode"
-    ] = True
-
-    await update.effective_message.reply_text(
-        "🔎 Please type the product "
-        "name you want to search."
-    )
+        await send_product_card(message, product, update.effective_user.id)
 
 
 # ============================================================
 # ORDERS
 # ============================================================
 
-@sync_to_async
-def get_orders_for_customer(
-    customer_id,
-):
-
-    return list(
-        get_customer_orders(
-            customer_id
-        )
-    )
-
 
 async def show_orders(update):
-
-    customer = await get_customer(
-        update.effective_user
-    )
-
     message = update.effective_message
-
-    if not message:
+    user = update.effective_user
+    if not message or not user:
         return
 
+    customer = await get_customer(user.id)
     if not customer:
+        await message.reply_text("❌ Customer account नहीं मिला। /start चलाएँ।")
+        return
 
+    orders = await get_customer_orders(customer.id)
+    if not orders:
+        await message.reply_text("📦 अभी आपका कोई order नहीं है।")
+        return
+
+    for order in orders[:10]:
         await message.reply_text(
-            "❌ Customer account not found."
+            f"📦 Order #{order.order_id}\n"
+            f"📌 Status: {order.get_order_status_display()}\n"
+            f"💰 Total: ₹{order.total_amount}\n"
+            f"🗓 {order.created_at:%d-%m-%Y %H:%M}",
+            reply_markup=InlineKeyboardMarkup([
+                [InlineKeyboardButton("📋 Details", callback_data=f"order_{order.order_id}")],
+            ]),
         )
 
+
+async def show_order_details(update, order_id):
+    message = update.effective_message
+    user = update.effective_user
+    if not message or not user:
         return
 
-    orders = await get_orders_for_customer(
-        customer.id
+    customer = await get_customer(user.id)
+    if not customer:
+        await message.reply_text("❌ Customer account नहीं मिला।")
+        return
+
+    details = await get_order_details(customer.id, order_id)
+    if not details:
+        await message.reply_text("❌ Order नहीं मिला।")
+        return
+
+    order = details["order"]
+    items = details["items"]
+
+    lines = [
+        f"📦 Order #{order.order_id}",
+        "",
+        f"📌 Status: {order.get_order_status_display()}",
+        f"💳 Payment: {order.get_payment_method_display()}",
+        f"📍 Address: {order.address}",
+        "",
+        "🛍 Items:",
+    ]
+
+    for item in items:
+        lines.append(f"• {item.product_name} × {item.quantity} = ₹{item.subtotal}")
+
+    lines.extend([
+        "",
+        f"💰 Total: ₹{order.total_amount}",
+    ])
+
+    await message.reply_text(
+        "\n".join(lines),
+        reply_markup=InlineKeyboardMarkup([
+            [InlineKeyboardButton("📍 Track Order", callback_data=f"track_{order.order_id}")],
+            [InlineKeyboardButton("⬅️ My Orders", callback_data="orders")],
+        ]),
     )
 
-    if not orders:
 
-        await message.reply_text(
-            "📦 You don't have any "
-            "orders yet."
-        )
-
+async def show_order_tracking(update, order_id):
+    message = update.effective_message
+    user = update.effective_user
+    if not message or not user:
         return
 
-    for order in orders:
+    customer = await get_customer(user.id)
+    if not customer:
+        await message.reply_text("❌ Customer account नहीं मिला।")
+        return
 
-        order_id = getattr(
-            order,
-            "order_id",
-            getattr(
-                order,
-                "id",
-                "N/A",
-            ),
-        )
+    details = await get_order_details(customer.id, order_id)
+    if not details:
+        await message.reply_text("❌ Order नहीं मिला।")
+        return
 
-        status = getattr(
-            order,
-            "status",
-            "Unknown",
-        )
+    order = details["order"]
+    tracking = await build_order_tracking(order)
 
-        total = getattr(
-            order,
-            "total_amount",
-            getattr(
-                order,
-                "total",
-                0,
-            ),
-        )
+    lines = [f"📦 Order Tracking\n\n🆔 {order.order_id}", ""]
+    for _, label in tracking["steps"]:
+        lines.append(label)
 
-        keyboard = InlineKeyboardMarkup(
-            [
-                [
-                    InlineKeyboardButton(
-                        "📋 Details",
-                        callback_data=(
-                            f"order_{order.id}"
-                        ),
-                    )
-                ]
-            ]
-        )
+    await message.reply_text(
+        "\n".join(lines),
+        reply_markup=InlineKeyboardMarkup([
+            [InlineKeyboardButton("⬅️ My Orders", callback_data="orders")],
+            [InlineKeyboardButton("🏠 Main Menu", callback_data="main_menu")],
+        ]),
+    )
 
-        await message.reply_text(
-            f"📦 Order: #{order_id}\n"
-            f"📌 Status: {status}\n"
-            f"💰 Total: ₹{total}",
-            reply_markup=keyboard,
-        )
+
+# ============================================================
+# CHECKOUT
+# ============================================================
 
 
 @sync_to_async
-def get_order_for_customer(
-    order_id,
-    customer_id,
-):
 
-    try:
-
-        return get_order_details(
-            order_id,
-            customer_id,
-        )
-
-    except Exception:
-
-        logger.exception(
-            "Could not get order details."
-        )
-
-        return None
+def get_default_address(telegram_user_id):
+    from customers.models import CustomerAddress
+    customer = Customer.objects.get(telegram_user_id=telegram_user_id)
+    return CustomerAddress.objects.filter(
+        customer=customer,
+        is_default=True,
+    ).first()
 
 
-async def show_order_details(
-    update,
-    order_id,
-):
-
-    customer = await get_customer(
-        update.effective_user
-    )
-
+async def checkout(update):
     message = update.effective_message
-
-    if not message:
+    user = update.effective_user
+    if not message or not user:
         return
 
-    if not customer:
+    _, items = await get_cart(user.id)
+    if not items:
+        await message.reply_text("🛒 Cart खाली है। पहले product add करें।")
+        return
 
+    address = await get_default_address(user.id)
+    if not address:
         await message.reply_text(
-            "❌ Customer account not found."
+            "📍 Checkout के लिए पहले एक default delivery address save करें।\n\n"
+            "अभी backend में address model connected है; next step में Telegram address form जोड़ेंगे।"
         )
-
         return
-
-    order = await get_order_for_customer(
-        order_id,
-        customer.id,
-    )
-
-    if not order:
-
-        await message.reply_text(
-            "❌ Order not found."
-        )
-
-        return
-
-    if isinstance(order, dict):
-
-        order_id_display = order.get(
-            "order_id",
-            order_id,
-        )
-
-        status = order.get(
-            "status",
-            "Unknown",
-        )
-
-        total = order.get(
-            "total_amount",
-            order.get(
-                "total",
-                0,
-            ),
-        )
-
-    else:
-
-        order_id_display = getattr(
-            order,
-            "order_id",
-            order_id,
-        )
-
-        status = getattr(
-            order,
-            "status",
-            "Unknown",
-        )
-
-        total = getattr(
-            order,
-            "total_amount",
-            getattr(
-                order,
-                "total",
-                0,
-            ),
-        )
 
     await message.reply_text(
-        f"📦 Order #{order_id_display}\n\n"
-        f"📌 Status: {status}\n"
-        f"💰 Total: ₹{total}"
+        "💳 Checkout\n\n"
+        f"📍 {address.address}, {address.city} - {address.pincode}\n\n"
+        "Payment method चुनें:",
+        reply_markup=InlineKeyboardMarkup([
+            [InlineKeyboardButton("💵 Cash on Delivery", callback_data=f"cod_{address.id}")],
+            [InlineKeyboardButton("💳 Razorpay Online", callback_data="online_payment")],
+        ]),
     )
 
 
@@ -1097,548 +704,215 @@ async def show_order_details(
 # CALLBACK HANDLER
 # ============================================================
 
-async def callback_handler(
-    update,
-    context,
-):
 
+async def callback_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
-
     if not query:
         return
 
     try:
-
-        logger.info(
-            "CALLBACK RECEIVED: %s",
-            query.data,
-        )
-
-        # IMPORTANT:
-        # Telegram button must be acknowledged quickly.
         await query.answer()
-
         data = query.data or ""
+        user = update.effective_user
 
-        # ----------------------------------------------------
-        # LANGUAGE
-        # ----------------------------------------------------
+        logger.info("CALLBACK RECEIVED: %s from user=%s", data, user.id if user else None)
 
         if data == "language_hi":
-
-            customer = await get_customer(
-                update.effective_user
-            )
-
-            if customer:
-
-                await update_customer_language(
-                    customer,
-                    "hi",
-                )
-
-            await send_hindi_menu(
-                update
-            )
-
+            customer = await update_customer_language(user.id, "hi")
+            await query.edit_message_text("🇮🇳 भाषा हिंदी में सेट कर दी गई है।")
+            await send_menu(update, customer)
             return
 
         if data == "language_en":
-
-            customer = await get_customer(
-                update.effective_user
-            )
-
-            if customer:
-
-                await update_customer_language(
-                    customer,
-                    "en",
-                )
-
-            await send_english_menu(
-                update
-            )
-
+            customer = await update_customer_language(user.id, "en")
+            await query.edit_message_text("🇬🇧 Language set to English.")
+            await send_menu(update, customer)
             return
-
-        # ----------------------------------------------------
-        # MAIN MENU
-        # ----------------------------------------------------
 
         if data == "main_menu":
-
-            customer = await get_customer(
-                update.effective_user
-            )
-
-            if (
-                customer
-                and customer.language == "hi"
-            ):
-
-                await send_hindi_menu(
-                    update
-                )
-
-            else:
-
-                await send_english_menu(
-                    update
-                )
-
+            customer = await get_customer(user.id)
+            if customer:
+                await send_menu(update, customer)
             return
 
-        # ----------------------------------------------------
-        # CATEGORIES
-        # ----------------------------------------------------
-
         if data == "categories":
-
-            await show_categories(
-                update
-            )
-
+            await show_categories(update)
             return
 
         if data.startswith("category_"):
-
-            category_id = int(
-                data.split(
-                    "_",
-                    1,
-                )[1]
-            )
-
-            await show_category_products(
-                update,
-                category_id,
-            )
-
+            await show_category_products(update, int(data.split("_", 1)[1]))
             return
 
-        # ----------------------------------------------------
-        # CART
-        # ----------------------------------------------------
-
         if data.startswith("addcart_"):
-
-            product_id = int(
-                data.split(
-                    "_",
-                    1,
-                )[1]
+            ok, reason, quantity = await add_product_to_cart(
+                user.id,
+                int(data.split("_", 1)[1]),
             )
-
-            customer = await get_customer(
-                update.effective_user
-            )
-
-            if not customer:
-
-                await query.message.reply_text(
-                    "❌ Customer account not found. "
-                    "Please use /start."
-                )
-
-                return
-
-            product = await get_product(
-                product_id
-            )
-
-            if not product:
-
-                await query.message.reply_text(
-                    "❌ Product not found."
-                )
-
-                return
-
-            await add_product_to_cart(
-                customer.id,
-                product.id,
-                1,
-            )
-
-            await query.message.reply_text(
-                f"✅ {product.name} "
-                f"added to cart."
-            )
-
+            messages = {
+                "added": f"✅ Cart में add हो गया। Quantity: {quantity}",
+                "unavailable": "❌ यह product अभी available नहीं है।",
+                "out_of_stock": "❌ यह product out of stock है।",
+                "stock_limit": f"⚠️ Maximum available quantity पहले ही Cart में है: {quantity}",
+                "not_found": "❌ Product नहीं मिला।",
+            }
+            await query.message.reply_text(messages.get(reason, "❌ Cart update failed."))
             return
 
         if data == "cart":
-
-            await show_cart(
-                update
-            )
-
+            await show_cart(update)
             return
 
         if data == "clear_cart":
-
-            customer = await get_customer(
-                update.effective_user
-            )
-
-            if customer:
-
-                await clear_cart(
-                    customer.id
-                )
-
-            await query.message.reply_text(
-                "🧹 Cart cleared successfully."
-            )
-
+            await clear_cart(user.id)
+            await query.message.reply_text("🧹 Cart successfully cleared.")
             return
-
-        # ----------------------------------------------------
-        # FAVORITES
-        # ----------------------------------------------------
 
         if data.startswith("favorite_"):
-
-            product_id = int(
-                data.split(
-                    "_",
-                    1,
-                )[1]
+            added, reason = await toggle_favorite(
+                user.id,
+                int(data.split("_", 1)[1]),
             )
-
-            customer = await get_customer(
-                update.effective_user
-            )
-
-            product = await get_product(
-                product_id
-            )
-
-            if not customer or not product:
-
-                await query.message.reply_text(
-                    "❌ Product not found."
-                )
-
-                return
-
-            await add_favorite(
-                customer.id,
-                product.id,
-            )
-
-            await query.message.reply_text(
-                f"❤️ {product.name} "
-                "added to favorites."
-            )
-
+            if reason == "added":
+                await query.message.reply_text("❤️ Product Favorites में add हो गया।")
+            elif reason == "removed":
+                await query.message.reply_text("💔 Product Favorites से remove हो गया।")
+            else:
+                await query.message.reply_text("❌ Product नहीं मिला।")
             return
-
-        # ----------------------------------------------------
-        # PRODUCT DETAILS
-        # ----------------------------------------------------
 
         if data.startswith("details_"):
-
-            product_id = int(
-                data.split(
-                    "_",
-                    1,
-                )[1]
-            )
-
-            await show_product_details(
-                update,
-                product_id,
-            )
-
+            await show_product_details(update, int(data.split("_", 1)[1]))
             return
-
-        # ----------------------------------------------------
-        # CHECKOUT
-        # ----------------------------------------------------
 
         if data == "checkout":
-
-            await query.message.reply_text(
-                "💳 Checkout\n\n"
-                "📍 Delivery Address\n"
-                "🚚 Delivery Charges\n"
-                "💵 Cash on Delivery\n"
-                "💳 Razorpay Online Payment\n\n"
-                "Checkout module is ready for integration."
-            )
-
+            await checkout(update)
             return
 
-        # ----------------------------------------------------
-        # ORDERS
-        # ----------------------------------------------------
+        if data == "online_payment":
+            await query.message.reply_text(
+                "💳 Razorpay online payment selected.\n\n"
+                "Payment gateway backend connected है; payment order/verification flow अगला step है।"
+            )
+            return
+
+        if data.startswith("cod_"):
+            await query.message.reply_text(
+                "💵 COD selected.\n\n"
+                "Order creation flow address और stock validation के साथ अगले step में execute किया जाएगा।"
+            )
+            return
 
         if data == "orders":
-
-            await show_orders(
-                update
-            )
-
+            await show_orders(update)
             return
 
         if data.startswith("order_"):
-
-            order_id = int(
-                data.split(
-                    "_",
-                    1,
-                )[1]
-            )
-
-            await show_order_details(
-                update,
-                order_id,
-            )
-
+            await show_order_details(update, data.split("_", 1)[1])
             return
 
-        # ----------------------------------------------------
-        # UNKNOWN
-        # ----------------------------------------------------
+        if data.startswith("track_"):
+            await show_order_tracking(update, data.split("_", 1)[1])
+            return
 
-        await query.message.reply_text(
-            "❌ Unknown button.\n\n"
-            "Please use /start."
-        )
+        await query.message.reply_text("❌ Unknown button. /start चलाएँ।")
 
     except Exception:
-
-        logger.exception(
-            "CALLBACK HANDLER FAILED."
-        )
-
+        logger.exception("CALLBACK HANDLER FAILED.")
         try:
-
-            if query.message:
-
-                await query.message.reply_text(
-                    "❌ Something went wrong. "
-                    "Please try again."
-                )
-
-        except Exception:
-
-            logger.exception(
-                "Could not send callback error."
+            await query.message.reply_text(
+                "❌ Button process करते समय backend error आया। Please try again."
             )
+        except Exception:
+            logger.exception("Could not send callback error message.")
 
 
 # ============================================================
 # TEXT HANDLER
 # ============================================================
 
-async def text_handler(
-    update,
-    context,
-):
 
-    if not update.message:
+async def text_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if not update.message or not update.effective_user:
         return
 
-    text = (
-        update.message.text or ""
-    ).strip()
-
+    text = (update.message.text or "").strip()
     if not text:
         return
 
-    logger.info(
-        "TEXT RECEIVED: %s",
-        text,
-    )
+    logger.info("TEXT RECEIVED: %s", text)
 
-    # SEARCH MODE
-    if context.user_data.get(
-        "search_mode"
-    ):
-
-        context.user_data[
-            "search_mode"
-        ] = False
-
-        await show_search_results(
-            update,
-            text,
-        )
-
+    if context.user_data.get("search_mode"):
+        context.user_data["search_mode"] = False
+        await show_search_results(update, text)
         return
 
-    # SHOP
-    if text in [
-        "🛍️ Shop",
-        "🛍️ मिठाई / Snacks",
-    ]:
-
-        await show_categories(
-            update
-        )
-
+    if text in ["🛍 दुकान देखें", "🛍 Shop"]:
+        await show_categories(update)
         return
 
-    # SEARCH
     if text == "🔎 Search":
-
-        await start_search(
-            update,
-            context,
-        )
-
+        context.user_data["search_mode"] = True
+        await update.message.reply_text("🔎 Product name type करें:")
         return
 
-    # FAVORITES
+    if text in ["🛒 मेरी Cart", "🛒 My Cart"]:
+        await show_cart(update)
+        return
+
     if text == "❤️ Favorites":
-
-        await show_favorites(
-            update
-        )
-
+        await show_favorites(update)
         return
 
-    # CART
-    if text == "🛒 Cart":
-
-        await show_cart(
-            update
-        )
-
+    if text in ["📦 मेरे Orders", "📦 My Orders"]:
+        await show_orders(update)
         return
 
-    # ORDERS
-    if text == "📦 My Orders":
-
-        await show_orders(
-            update
-        )
-
-        return
-
-    # HINDI
-    if text == "🌐 हिंदी":
-
-        customer = await get_customer(
-            update.effective_user
-        )
-
-        if customer:
-
-            await update_customer_language(
-                customer,
-                "hi",
-            )
-
-        await send_hindi_menu(
-            update
-        )
-
-        return
-
-    # ENGLISH
-    if text == "🌐 English":
-
-        customer = await get_customer(
-            update.effective_user
-        )
-
-        if customer:
-
-            await update_customer_language(
-                customer,
-                "en",
-            )
-
-        await send_english_menu(
-            update
-        )
-
-        return
-
-    # ADDRESS
-    if text == "📍 Address":
-
+    if text in ["🌐 Language"]:
         await update.message.reply_text(
-            "📍 Address management will "
-            "be available during checkout."
+            "🌐 भाषा चुनें:",
+            reply_markup=language_keyboard(),
         )
-
         return
 
-    # HELP
-    if text == "❓ Help":
-
+    if text == "☎️ Help":
         await update.message.reply_text(
-            "❓ Help\n\n"
-            "🛍️ Shop - Browse products\n"
+            "☎️ Help\n\n"
+            "🛍 Shop - Products\n"
             "🔎 Search - Search products\n"
-            "🛒 Cart - View cart\n"
+            "🛒 Cart - Cart\n"
             "❤️ Favorites - Saved products\n"
-            "📦 My Orders - View orders\n"
+            "📦 My Orders - Orders and tracking\n"
             "📍 Address - Delivery address\n\n"
-            "For support, please contact the shop."
+            "Please contact the shop for support."
         )
+        return
 
+    if text in ["📍 मेरा Address", "📍 My Address"]:
+        await update.message.reply_text(
+            "📍 Address management\n\n"
+            "Your delivery addresses are stored in the Django backend."
+        )
         return
 
     await update.message.reply_text(
-        "Please select an option "
-        "from the menu.\n\n"
-        "Or use /start."
+        "Please menu से कोई option चुनें या /start चलाएँ।"
     )
 
 
 # ============================================================
-# ERROR HANDLER
+# ERROR / HANDLERS
 # ============================================================
 
-async def error_handler(
-    update,
-    context,
-):
 
-    logger.error(
-        "Telegram update error",
-        exc_info=context.error,
-    )
+async def error_handler(update, context):
+    logger.error("Telegram update error", exc_info=context.error)
 
-
-# ============================================================
-# REGISTER HANDLERS
-# ============================================================
 
 def register_handlers(application):
-
+    application.add_handler(CommandHandler("start", start))
+    application.add_handler(CallbackQueryHandler(callback_handler))
     application.add_handler(
-        CommandHandler(
-            "start",
-            start,
-        )
+        MessageHandler(filters.TEXT & ~filters.COMMAND, text_handler)
     )
-
-    application.add_handler(
-        CallbackQueryHandler(
-            callback_handler
-        )
-    )
-
-    application.add_handler(
-        MessageHandler(
-            filters.TEXT
-            & ~filters.COMMAND,
-            text_handler,
-        )
-    )
-
-    application.add_error_handler(
-        error_handler
-    )
-
-    logger.info(
-        "Telegram handlers registered."
-    )
+    application.add_error_handler(error_handler)
+    logger.info("Telegram handlers registered.")
