@@ -9,3 +9,5 @@ python manage.py migrate
 python manage.py check
 
 python manage.py check --deploy
+
+python set_telegram_webhook.py
