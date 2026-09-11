@@ -15,7 +15,7 @@ logger = logging.getLogger(__name__)
 
 @csrf_exempt
 async def telegram_webhook(request):
-    """Receive Telegram webhook updates and hand them to PTB."""
+    """Receive and immediately process Telegram webhook updates."""
 
     if request.method != "POST":
         return JsonResponse(
@@ -34,8 +34,11 @@ async def telegram_webhook(request):
             "X-Telegram-Bot-Api-Secret-Token",
             "",
         )
+
         if received_secret != configured_secret:
-            logger.warning("Invalid Telegram webhook secret.")
+            logger.warning(
+                "Telegram webhook rejected: invalid secret token."
+            )
             return JsonResponse(
                 {"status": "error", "message": "Unauthorized."},
                 status=403,
@@ -44,7 +47,7 @@ async def telegram_webhook(request):
     try:
         data = json.loads(request.body.decode("utf-8"))
     except (json.JSONDecodeError, UnicodeDecodeError):
-        logger.exception("Invalid Telegram webhook JSON.")
+        logger.exception("Telegram webhook received invalid JSON.")
         return JsonResponse(
             {"status": "error", "message": "Invalid JSON."},
             status=400,
@@ -55,23 +58,34 @@ async def telegram_webhook(request):
         update = Update.de_json(data=data, bot=application.bot)
 
         if update is None:
-            logger.error("Telegram update could not be created.")
+            logger.error("Telegram webhook received an invalid Update.")
             return JsonResponse(
                 {"status": "error", "message": "Invalid Telegram update."},
                 status=400,
             )
 
+        callback_data = (
+            update.callback_query.data
+            if update.callback_query
+            else None
+        )
+
         logger.info(
-            "TELEGRAM WEBHOOK RECEIVED update_id=%s message=%s callback=%s data=%s",
+            "TELEGRAM UPDATE RECEIVED: update_id=%s message=%s callback=%s callback_data=%s",
             update.update_id,
             bool(update.message),
             bool(update.callback_query),
-            update.callback_query.data if update.callback_query else None,
+            callback_data,
         )
 
-        # The PTB Application is started once and consumes this queue in the
-        # background. This is the pattern recommended for a custom webhook.
-        await application.update_queue.put(update)
+        # Process the update in the same ASGI request. This avoids relying on
+        # a background queue task surviving after the webhook request ends.
+        await application.process_update(update)
+
+        logger.info(
+            "TELEGRAM UPDATE PROCESSED SUCCESSFULLY: update_id=%s",
+            update.update_id,
+        )
 
         return JsonResponse({"status": "ok"})
 
