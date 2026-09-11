@@ -28,7 +28,7 @@ async def main():
         await bot.set_webhook(
             url=webhook_url,
             secret_token=secret or None,
-            drop_pending_updates=True,
+            drop_pending_updates=False,
             allowed_updates=["message", "callback_query"],
         )
         info = await bot.get_webhook_info()
