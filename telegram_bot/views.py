@@ -19,7 +19,7 @@ logger = logging.getLogger(__name__)
 async def telegram_webhook(request):
 
     # ========================================================
-    # METHOD
+    # METHOD CHECK
     # ========================================================
 
     if request.method != "POST":
@@ -33,7 +33,7 @@ async def telegram_webhook(request):
         )
 
     # ========================================================
-    # SECRET
+    # TELEGRAM SECRET CHECK
     # ========================================================
 
     configured_secret = getattr(
@@ -70,9 +70,7 @@ async def telegram_webhook(request):
     try:
 
         data = json.loads(
-            request.body.decode(
-                "utf-8"
-            )
+            request.body.decode("utf-8")
         )
 
     except (
@@ -81,7 +79,7 @@ async def telegram_webhook(request):
     ):
 
         logger.exception(
-            "Invalid webhook JSON."
+            "Invalid Telegram webhook JSON."
         )
 
         return JsonResponse(
@@ -93,7 +91,7 @@ async def telegram_webhook(request):
         )
 
     # ========================================================
-    # PROCESS
+    # TELEGRAM UPDATE
     # ========================================================
 
     try:
@@ -110,7 +108,7 @@ async def telegram_webhook(request):
         if update is None:
 
             logger.error(
-                "Invalid Telegram update."
+                "Telegram update could not be created."
             )
 
             return JsonResponse(
@@ -122,9 +120,36 @@ async def telegram_webhook(request):
             )
 
         logger.info(
+            "================================================"
+        )
+
+        logger.info(
             "TELEGRAM UPDATE RECEIVED: %s",
             update.update_id,
         )
+
+        logger.info(
+            "HAS MESSAGE: %s",
+            bool(update.message),
+        )
+
+        logger.info(
+            "HAS CALLBACK: %s",
+            bool(update.callback_query),
+        )
+
+        if update.callback_query:
+
+            logger.info(
+                "CALLBACK DATA: %s",
+                update.callback_query.data,
+            )
+
+        # ====================================================
+        # IMPORTANT
+        # ====================================================
+        # Directly process the update.
+        # Do NOT use application.start() here.
 
         await application.process_update(
             update
@@ -135,16 +160,20 @@ async def telegram_webhook(request):
             update.update_id,
         )
 
+        logger.info(
+            "================================================"
+        )
+
         return JsonResponse(
             {
-                "status": "ok"
+                "status": "ok",
             }
         )
 
     except Exception:
 
         logger.exception(
-            "TELEGRAM WEBHOOK FAILED."
+            "TELEGRAM WEBHOOK PROCESSING FAILED."
         )
 
         return JsonResponse(

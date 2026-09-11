@@ -312,9 +312,9 @@ SECURE_REFERRER_POLICY = "same-origin"
 # PRODUCTION SECURITY
 # ============================================================
 
-if not DEBUG:
+SECURE_SSL_REDIRECT = not DEBUG
 
-    SECURE_SSL_REDIRECT = True
+if not DEBUG:
 
     SESSION_COOKIE_SECURE = True
 

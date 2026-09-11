@@ -38,7 +38,6 @@ _application_initialized = False
 # ============================================================
 
 def get_telegram_application():
-
     global _application
 
     if _application is None:
@@ -61,9 +60,7 @@ def get_telegram_application():
             .build()
         )
 
-        register_handlers(
-            _application
-        )
+        register_handlers(_application)
 
         logger.info(
             "Telegram application created."
@@ -96,9 +93,7 @@ async def initialize_telegram_application():
 # ============================================================
 
 @sync_to_async
-def get_or_create_customer(
-    telegram_user,
-):
+def get_or_create_customer(telegram_user):
 
     customer, created = (
         Customer.objects.get_or_create(
@@ -111,7 +106,7 @@ def get_or_create_customer(
                     or telegram_user.username
                     or "Customer"
                 ),
-                "language": "en",
+                "language": "",
             },
         )
     )
@@ -132,9 +127,7 @@ def get_or_create_customer(
 
 
 @sync_to_async
-def get_customer(
-    telegram_user,
-):
+def get_customer(telegram_user):
 
     return Customer.objects.filter(
         telegram_id=str(
@@ -180,24 +173,19 @@ def language_keyboard():
     )
 
 
-async def send_language_selection(
-    update,
-):
-
-    text = (
-        "🙏 Welcome to Sweet Snacks "
-        "Home Delivery!\n\n"
-        "Please select your language:"
-    )
+async def send_language_selection(update):
 
     message = update.effective_message
 
-    if message:
+    if not message:
+        return
 
-        await message.reply_text(
-            text,
-            reply_markup=language_keyboard(),
-        )
+    await message.reply_text(
+        "🙏 Welcome to Sweet Snacks "
+        "Home Delivery!\n\n"
+        "Please select your language:",
+        reply_markup=language_keyboard(),
+    )
 
 
 # ============================================================
@@ -254,9 +242,7 @@ def english_menu():
     )
 
 
-async def send_hindi_menu(
-    update,
-):
+async def send_hindi_menu(update):
 
     message = update.effective_message
 
@@ -271,9 +257,7 @@ async def send_hindi_menu(
     )
 
 
-async def send_english_menu(
-    update,
-):
+async def send_english_menu(update):
 
     message = update.effective_message
 
@@ -359,9 +343,7 @@ def get_categories():
     )
 
 
-def category_keyboard(
-    categories,
-):
+def category_keyboard(categories):
 
     buttons = []
 
@@ -392,9 +374,7 @@ def category_keyboard(
     )
 
 
-async def show_categories(
-    update,
-):
+async def show_categories(update):
 
     categories = await get_categories()
 
@@ -424,9 +404,7 @@ async def show_categories(
 # ============================================================
 
 @sync_to_async
-def get_products_by_category(
-    category_id,
-):
+def get_products_by_category(category_id):
 
     return list(
         Product.objects.filter(
@@ -437,9 +415,7 @@ def get_products_by_category(
 
 
 @sync_to_async
-def get_product(
-    product_id,
-):
+def get_product(product_id):
 
     return (
         Product.objects.filter(
@@ -451,9 +427,7 @@ def get_product(
     )
 
 
-def product_keyboard(
-    product,
-):
+def product_keyboard(product):
 
     return InlineKeyboardMarkup(
         [
@@ -559,8 +533,7 @@ async def send_product_card(
     except Exception:
 
         logger.exception(
-            "Product image failed. "
-            "product_id=%s",
+            "Product image failed. product_id=%s",
             product.id,
         )
 
@@ -667,9 +640,7 @@ def add_product_to_cart(
 
 
 @sync_to_async
-def get_cart_items(
-    customer_id,
-):
+def get_cart_items(customer_id):
 
     return list(
         CartItem.objects.filter(
@@ -681,9 +652,7 @@ def get_cart_items(
 
 
 @sync_to_async
-def clear_cart(
-    customer_id,
-):
+def clear_cart(customer_id):
 
     CartItem.objects.filter(
         customer_id=customer_id
@@ -716,9 +685,7 @@ def cart_keyboard():
     )
 
 
-async def show_cart(
-    update,
-):
+async def show_cart(update):
 
     customer = await get_customer(
         update.effective_user
@@ -798,9 +765,7 @@ def add_favorite(
 
 
 @sync_to_async
-def get_favorites(
-    customer_id,
-):
+def get_favorites(customer_id):
 
     return list(
         Favorite.objects.filter(
@@ -811,9 +776,7 @@ def get_favorites(
     )
 
 
-async def show_favorites(
-    update,
-):
+async def show_favorites(update):
 
     customer = await get_customer(
         update.effective_user
@@ -864,17 +827,13 @@ async def show_favorites(
 # ============================================================
 
 @sync_to_async
-def search_products(
-    search_text,
-):
+def search_products(search_text):
 
     return list(
         Product.objects.filter(
             is_active=True,
             name__icontains=search_text,
-        ).order_by(
-            "name"
-        )[:20]
+        ).order_by("name")[:20]
     )
 
 
@@ -945,9 +904,7 @@ def get_orders_for_customer(
     )
 
 
-async def show_orders(
-    update,
-):
+async def show_orders(update):
 
     customer = await get_customer(
         update.effective_user
@@ -1085,10 +1042,7 @@ async def show_order_details(
 
         return
 
-    if isinstance(
-        order,
-        dict,
-    ):
+    if isinstance(order, dict):
 
         order_id_display = order.get(
             "order_id",
@@ -1140,7 +1094,7 @@ async def show_order_details(
 
 
 # ============================================================
-# CALLBACK
+# CALLBACK HANDLER
 # ============================================================
 
 async def callback_handler(
@@ -1155,16 +1109,20 @@ async def callback_handler(
 
     try:
 
+        logger.info(
+            "CALLBACK RECEIVED: %s",
+            query.data,
+        )
+
+        # IMPORTANT:
+        # Telegram button must be acknowledged quickly.
         await query.answer()
 
         data = query.data or ""
 
-        logger.info(
-            "CALLBACK received: %s",
-            data,
-        )
-
+        # ----------------------------------------------------
         # LANGUAGE
+        # ----------------------------------------------------
 
         if data == "language_hi":
 
@@ -1204,7 +1162,9 @@ async def callback_handler(
 
             return
 
+        # ----------------------------------------------------
         # MAIN MENU
+        # ----------------------------------------------------
 
         if data == "main_menu":
 
@@ -1229,7 +1189,9 @@ async def callback_handler(
 
             return
 
+        # ----------------------------------------------------
         # CATEGORIES
+        # ----------------------------------------------------
 
         if data == "categories":
 
@@ -1239,11 +1201,7 @@ async def callback_handler(
 
             return
 
-        # CATEGORY
-
-        if data.startswith(
-            "category_"
-        ):
+        if data.startswith("category_"):
 
             category_id = int(
                 data.split(
@@ -1259,11 +1217,11 @@ async def callback_handler(
 
             return
 
-        # ADD CART
+        # ----------------------------------------------------
+        # CART
+        # ----------------------------------------------------
 
-        if data.startswith(
-            "addcart_"
-        ):
+        if data.startswith("addcart_"):
 
             product_id = int(
                 data.split(
@@ -1279,7 +1237,8 @@ async def callback_handler(
             if not customer:
 
                 await query.message.reply_text(
-                    "❌ Customer account not found."
+                    "❌ Customer account not found. "
+                    "Please use /start."
                 )
 
                 return
@@ -1309,11 +1268,37 @@ async def callback_handler(
 
             return
 
-        # FAVORITE
+        if data == "cart":
 
-        if data.startswith(
-            "favorite_"
-        ):
+            await show_cart(
+                update
+            )
+
+            return
+
+        if data == "clear_cart":
+
+            customer = await get_customer(
+                update.effective_user
+            )
+
+            if customer:
+
+                await clear_cart(
+                    customer.id
+                )
+
+            await query.message.reply_text(
+                "🧹 Cart cleared successfully."
+            )
+
+            return
+
+        # ----------------------------------------------------
+        # FAVORITES
+        # ----------------------------------------------------
+
+        if data.startswith("favorite_"):
 
             product_id = int(
                 data.split(
@@ -1345,16 +1330,16 @@ async def callback_handler(
 
             await query.message.reply_text(
                 f"❤️ {product.name} "
-                f"added to favorites."
+                "added to favorites."
             )
 
             return
 
-        # DETAILS
+        # ----------------------------------------------------
+        # PRODUCT DETAILS
+        # ----------------------------------------------------
 
-        if data.startswith(
-            "details_"
-        ):
+        if data.startswith("details_"):
 
             product_id = int(
                 data.split(
@@ -1370,51 +1355,26 @@ async def callback_handler(
 
             return
 
-        # CART
-
-        if data == "cart":
-
-            await show_cart(
-                update
-            )
-
-            return
-
-        # CLEAR CART
-
-        if data == "clear_cart":
-
-            customer = await get_customer(
-                update.effective_user
-            )
-
-            if customer:
-
-                await clear_cart(
-                    customer.id
-                )
-
-            await query.message.reply_text(
-                "🧹 Cart cleared successfully."
-            )
-
-            return
-
+        # ----------------------------------------------------
         # CHECKOUT
+        # ----------------------------------------------------
 
         if data == "checkout":
 
             await query.message.reply_text(
-                "💳 Checkout module will handle:\n\n"
+                "💳 Checkout\n\n"
                 "📍 Delivery Address\n"
                 "🚚 Delivery Charges\n"
                 "💵 Cash on Delivery\n"
-                "💳 Razorpay Online Payment"
+                "💳 Razorpay Online Payment\n\n"
+                "Checkout module is ready for integration."
             )
 
             return
 
+        # ----------------------------------------------------
         # ORDERS
+        # ----------------------------------------------------
 
         if data == "orders":
 
@@ -1424,11 +1384,7 @@ async def callback_handler(
 
             return
 
-        # ORDER
-
-        if data.startswith(
-            "order_"
-        ):
+        if data.startswith("order_"):
 
             order_id = int(
                 data.split(
@@ -1444,27 +1400,39 @@ async def callback_handler(
 
             return
 
+        # ----------------------------------------------------
+        # UNKNOWN
+        # ----------------------------------------------------
+
         await query.message.reply_text(
-            "❌ Unknown option. "
+            "❌ Unknown button.\n\n"
             "Please use /start."
         )
 
     except Exception:
 
         logger.exception(
-            "Telegram callback failed."
+            "CALLBACK HANDLER FAILED."
         )
 
-        if query.message:
+        try:
 
-            await query.message.reply_text(
-                "❌ Something went wrong. "
-                "Please try again."
+            if query.message:
+
+                await query.message.reply_text(
+                    "❌ Something went wrong. "
+                    "Please try again."
+                )
+
+        except Exception:
+
+            logger.exception(
+                "Could not send callback error."
             )
 
 
 # ============================================================
-# TEXT
+# TEXT HANDLER
 # ============================================================
 
 async def text_handler(
@@ -1483,12 +1451,11 @@ async def text_handler(
         return
 
     logger.info(
-        "TEXT received: %s",
+        "TEXT RECEIVED: %s",
         text,
     )
 
-    # SEARCH
-
+    # SEARCH MODE
     if context.user_data.get(
         "search_mode"
     ):
@@ -1505,7 +1472,6 @@ async def text_handler(
         return
 
     # SHOP
-
     if text in [
         "🛍️ Shop",
         "🛍️ मिठाई / Snacks",
@@ -1518,7 +1484,6 @@ async def text_handler(
         return
 
     # SEARCH
-
     if text == "🔎 Search":
 
         await start_search(
@@ -1529,7 +1494,6 @@ async def text_handler(
         return
 
     # FAVORITES
-
     if text == "❤️ Favorites":
 
         await show_favorites(
@@ -1539,7 +1503,6 @@ async def text_handler(
         return
 
     # CART
-
     if text == "🛒 Cart":
 
         await show_cart(
@@ -1549,7 +1512,6 @@ async def text_handler(
         return
 
     # ORDERS
-
     if text == "📦 My Orders":
 
         await show_orders(
@@ -1559,7 +1521,6 @@ async def text_handler(
         return
 
     # HINDI
-
     if text == "🌐 हिंदी":
 
         customer = await get_customer(
@@ -1580,7 +1541,6 @@ async def text_handler(
         return
 
     # ENGLISH
-
     if text == "🌐 English":
 
         customer = await get_customer(
@@ -1601,7 +1561,6 @@ async def text_handler(
         return
 
     # ADDRESS
-
     if text == "📍 Address":
 
         await update.message.reply_text(
@@ -1612,7 +1571,6 @@ async def text_handler(
         return
 
     # HELP
-
     if text == "❓ Help":
 
         await update.message.reply_text(
@@ -1636,7 +1594,7 @@ async def text_handler(
 
 
 # ============================================================
-# ERROR
+# ERROR HANDLER
 # ============================================================
 
 async def error_handler(
@@ -1651,12 +1609,10 @@ async def error_handler(
 
 
 # ============================================================
-# HANDLERS
+# REGISTER HANDLERS
 # ============================================================
 
-def register_handlers(
-    application,
-):
+def register_handlers(application):
 
     application.add_handler(
         CommandHandler(
