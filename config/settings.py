@@ -31,7 +31,7 @@ RENDER = os.getenv("RENDER", "") == "true"
 RENDER_EXTERNAL_HOSTNAME = os.getenv(
     "RENDER_EXTERNAL_HOSTNAME",
     "",
-)
+).strip()
 
 
 # ============================================================
@@ -121,7 +121,6 @@ TEMPLATES = [
 # ============================================================
 
 WSGI_APPLICATION = "config.wsgi.application"
-
 ASGI_APPLICATION = "config.asgi.application"
 
 
@@ -146,24 +145,6 @@ else:
             "NAME": BASE_DIR / "db.sqlite3",
         }
     }
-    
-# DATABASE_URL = os.getenv("DATABASE_URL", "").strip()
-
-# if DATABASE_URL:
-#     DATABASES = {
-#         "default": dj_database_url.parse(
-#             DATABASE_URL,
-#             conn_max_age=600,
-            
-#         )
-#     }
-# else:
-#     DATABASES = {
-#         "default": {
-#             "ENGINE": "django.db.backends.sqlite3",
-#             "NAME": BASE_DIR / "db.sqlite3",
-#         }
-#     }
 
 
 # ============================================================
@@ -203,11 +184,8 @@ AUTH_PASSWORD_VALIDATORS = [
 # ============================================================
 
 LANGUAGE_CODE = "en-us"
-
 TIME_ZONE = "Asia/Kolkata"
-
 USE_I18N = True
-
 USE_TZ = True
 
 
@@ -216,7 +194,6 @@ USE_TZ = True
 # ============================================================
 
 STATIC_URL = "/static/"
-
 STATIC_ROOT = BASE_DIR / "staticfiles"
 
 STATICFILES_DIRS = [
@@ -241,7 +218,6 @@ STORAGES = {
 # ============================================================
 
 MEDIA_URL = "/media/"
-
 MEDIA_ROOT = BASE_DIR / "media"
 
 
@@ -258,12 +234,17 @@ DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
 TELEGRAM_BOT_TOKEN = os.getenv(
     "TELEGRAM_BOT_TOKEN",
-    ""
+    "",
 ).strip()
 
 TELEGRAM_WEBHOOK_SECRET = os.getenv(
     "TELEGRAM_WEBHOOK_SECRET",
-    ""
+    "",
+).strip()
+
+TELEGRAM_WEBHOOK_URL = os.getenv(
+    "TELEGRAM_WEBHOOK_URL",
+    "",
 ).strip()
 
 
@@ -298,30 +279,24 @@ if RENDER_EXTERNAL_HOSTNAME:
 
 
 # ============================================================
-# SECURITY HEADERS
+# SECURITY HEADERS / PROXY
 # ============================================================
 
 SECURE_CONTENT_TYPE_NOSNIFF = True
-
 X_FRAME_OPTIONS = "DENY"
-
 SECURE_REFERRER_POLICY = "same-origin"
 
-
-# ============================================================
-# PRODUCTION SECURITY
-# ============================================================
+# Render terminates TLS and forwards the original scheme.
+SECURE_PROXY_SSL_HEADER = (
+    "HTTP_X_FORWARDED_PROTO",
+    "https",
+)
 
 SECURE_SSL_REDIRECT = not DEBUG
 
 if not DEBUG:
-
     SESSION_COOKIE_SECURE = True
-
     CSRF_COOKIE_SECURE = True
-
     SECURE_HSTS_SECONDS = 31536000
-
     SECURE_HSTS_INCLUDE_SUBDOMAINS = True
-
     SECURE_HSTS_PRELOAD = True
