@@ -7,7 +7,9 @@ from django.views.decorators.csrf import csrf_exempt
 
 from telegram import Update
 
-from .bot import initialize_telegram_application
+from .bot import (
+    initialize_telegram_application,
+)
 
 
 logger = logging.getLogger(__name__)
@@ -16,7 +18,12 @@ logger = logging.getLogger(__name__)
 @csrf_exempt
 async def telegram_webhook(request):
 
+    # ========================================================
+    # METHOD
+    # ========================================================
+
     if request.method != "POST":
+
         return JsonResponse(
             {
                 "status": "error",
@@ -26,7 +33,7 @@ async def telegram_webhook(request):
         )
 
     # ========================================================
-    # TELEGRAM SECRET TOKEN CHECK
+    # SECRET TOKEN
     # ========================================================
 
     configured_secret = getattr(
@@ -43,6 +50,7 @@ async def telegram_webhook(request):
         )
 
         if received_secret != configured_secret:
+
             logger.warning(
                 "Invalid Telegram webhook secret."
             )
@@ -60,16 +68,22 @@ async def telegram_webhook(request):
     # ========================================================
 
     try:
-        body = request.body.decode(
-            "utf-8"
-        )
 
-        data = json.loads(body)
+        data = json.loads(
+            request.body.decode(
+                "utf-8"
+            )
+        )
 
     except (
         json.JSONDecodeError,
         UnicodeDecodeError,
     ):
+
+        logger.exception(
+            "Invalid Telegram webhook JSON."
+        )
+
         return JsonResponse(
             {
                 "status": "error",
@@ -94,6 +108,11 @@ async def telegram_webhook(request):
         )
 
         if update is None:
+
+            logger.error(
+                "Telegram returned invalid update."
+            )
+
             return JsonResponse(
                 {
                     "status": "error",
@@ -102,19 +121,33 @@ async def telegram_webhook(request):
                 status=400,
             )
 
-        # Process Telegram update
+        logger.info(
+            "Telegram update received: update_id=%s",
+            update.update_id,
+        )
+
+        # ====================================================
+        # PROCESS UPDATE DIRECTLY
+        # ====================================================
+
         await application.process_update(
             update
         )
 
+        logger.info(
+            "Telegram update processed: update_id=%s",
+            update.update_id,
+        )
+
         return JsonResponse(
             {
-                "status": "ok"
+                "status": "ok",
             },
             status=200,
         )
 
     except Exception:
+
         logger.exception(
             "Telegram webhook processing failed."
         )

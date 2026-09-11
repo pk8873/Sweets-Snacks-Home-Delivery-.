@@ -27,30 +27,33 @@ class Command(BaseCommand):
         ).strip()
 
         if not token:
+
             self.stdout.write(
                 self.style.ERROR(
                     "TELEGRAM_BOT_TOKEN is missing."
                 )
             )
+
             return
 
         if not secret:
+
             self.stdout.write(
                 self.style.ERROR(
                     "TELEGRAM_WEBHOOK_SECRET is missing."
                 )
             )
+
             return
 
         webhook_url = (
-            "https://"
-            "sweets-snacks-home-delivery-3"
+            "https://sweets-snacks-home-delivery-3"
             ".onrender.com"
             "/telegram/webhook/"
         )
 
         api_url = (
-            f"https://api.telegram.org/"
+            "https://api.telegram.org/"
             f"bot{token}/setWebhook"
         )
 
@@ -58,6 +61,10 @@ class Command(BaseCommand):
             "url": webhook_url,
             "secret_token": secret,
             "drop_pending_updates": True,
+            "allowed_updates": [
+                "message",
+                "callback_query",
+            ],
         }
 
         try:

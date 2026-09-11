@@ -21,15 +21,17 @@ class Command(BaseCommand):
         ).strip()
 
         if not token:
+
             self.stdout.write(
                 self.style.ERROR(
                     "TELEGRAM_BOT_TOKEN is missing."
                 )
             )
+
             return
 
         api_url = (
-            f"https://api.telegram.org/"
+            "https://api.telegram.org/"
             f"bot{token}/deleteWebhook"
         )
 
