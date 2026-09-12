@@ -68,8 +68,25 @@ class Product(models.Model):
         default=True
     )
 
+    # Normal products use stock as number of pieces/packs.
     stock = models.PositiveIntegerField(
         default=0
+    )
+
+    # Weight-based products use these fields. Price is for weight_grams.
+    is_weight_based = models.BooleanField(
+        default=False,
+        help_text="Enable for products sold by weight, such as sweets or namkeen."
+    )
+
+    weight_grams = models.PositiveIntegerField(
+        default=1000,
+        help_text="Base weight in grams for the listed price, e.g. 1000 for a 1 kg price."
+    )
+
+    stock_grams = models.PositiveIntegerField(
+        default=0,
+        help_text="Available stock in grams for weight-based products."
     )
 
     created_at = models.DateTimeField(
