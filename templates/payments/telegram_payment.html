@@ -26,7 +26,6 @@
     <div class="card">
         <div class="brand">🍬 Sweet & Snacks</div>
         <div class="muted">Secure online payment</div>
-
         <div class="row"><span>Order</span><strong>{{ order.order_id }}</strong></div>
         <div class="row"><span>Customer</span><strong>{{ order.customer_name }}</strong></div>
         <div class="row"><span>Payment</span><strong>Razorpay</strong></div>
@@ -58,12 +57,12 @@ payButton.addEventListener("click", function () {
     payButton.textContent = "⏳ Opening payment...";
 
     const options = {
-        key: "{{ settings.RAZORPAY_KEY_ID|default:'' }}",
-        amount: "{{ payment.amount|floatformat:0 }}" * 100,
+        key: "{{ razorpay_key_id|escapejs }}",
+        amount: {{ payment.amount|floatformat:0 }} * 100,
         currency: "INR",
         name: "Sweet & Snacks",
-        description: "Order {{ order.order_id }}",
-        order_id: "{{ payment.gateway_order_id }}",
+        description: "Order {{ order.order_id|escapejs }}",
+        order_id: "{{ payment.gateway_order_id|escapejs }}",
         prefill: {
             name: "{{ order.customer_name|escapejs }}",
             contact: "{{ order.phone|default:''|escapejs }}"
