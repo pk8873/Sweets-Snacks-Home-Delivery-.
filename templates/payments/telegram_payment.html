@@ -31,6 +31,8 @@
         <div class="row"><span>Payment</span><strong>Razorpay</strong></div>
         <div class="total">₹{{ order.total_amount|floatformat:2 }}</div>
 
+        <form id="csrfForm" style="display:none">{% csrf_token %}</form>
+
         {% if payment.status == "paid" %}
             <div id="status" class="status success" style="display:block">✅ Payment already completed. Your order is confirmed.</div>
         {% else %}
@@ -44,7 +46,7 @@
 <script>
 const payButton = document.getElementById("payButton");
 const statusBox = document.getElementById("status");
-const csrfToken = "{{ csrf_token }}";
+const csrfToken = document.querySelector("#csrfForm input[name=csrfmiddlewaretoken]").value;
 
 function showStatus(message, ok=false) {
     statusBox.textContent = message;
