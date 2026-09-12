@@ -19,17 +19,16 @@ class ProductAdmin(admin.ModelAdmin):
         "name",
         "category",
         "price",
-        "is_weight_based",
-        "weight_grams",
-        "stock",
-        "stock_grams",
+        "selling_unit",
+        "price_quantity_label",
+        "stock_display",
         "available",
         "created_at",
     )
 
     list_filter = (
         "category",
-        "is_weight_based",
+        "selling_unit",
         "available",
         "created_at",
     )
@@ -38,14 +37,17 @@ class ProductAdmin(admin.ModelAdmin):
 
     list_editable = (
         "price",
-        "is_weight_based",
-        "weight_grams",
-        "stock",
-        "stock_grams",
+        "selling_unit",
         "available",
     )
 
-    readonly_fields = ("created_at", "updated_at")
+    readonly_fields = (
+        "created_at",
+        "updated_at",
+        "unit_label",
+        "price_quantity_label",
+        "stock_display",
+    )
 
     fieldsets = (
         (
@@ -56,16 +58,31 @@ class ProductAdmin(admin.ModelAdmin):
             "Price & Selling Unit",
             {
                 "description": (
-                    "Normal product: price is per piece/pack and stock is pieces/packs. "
-                    "Weight product: price is for weight_grams and stock_grams is total available weight. "
-                    "For example, set weight_grams=1000 and price=400 for ₹400/kg."
+                    "Choose the real selling unit for this product. "
+                    "Pieces/Packs is for countable items such as burgers, samosas and similar products. "
+                    "Grams is for products priced by gram, and Kilograms is for products priced per kg. "
+                    "Do not use grams for every product."
                 ),
                 "fields": (
                     "price",
-                    "is_weight_based",
+                    "selling_unit",
                     "weight_grams",
+                    "unit_label",
+                    "price_quantity_label",
+                ),
+            },
+        ),
+        (
+            "Inventory",
+            {
+                "description": (
+                    "For Pieces/Packs use Stock. For Grams/Kilograms use Stock (grams). "
+                    "The Telegram bot and order system will use the selected selling unit automatically."
+                ),
+                "fields": (
                     "stock",
                     "stock_grams",
+                    "stock_display",
                     "available",
                 ),
             },
