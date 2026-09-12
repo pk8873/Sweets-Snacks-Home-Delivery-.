@@ -1,44 +1,37 @@
 services:
   - type: web
-    name: sweets-snacks-home-delivery-3
+    name: sweets-snacks-home-delivery
     env: python
     plan: free
 
-    buildCommand: |
-      pip install -r requirements.txt
-      python manage.py collectstatic --no-input
-      python manage.py migrate
-      python manage.py check
-      python create_admin.py
+    buildCommand: >-
+      pip install -r requirements.txt &&
+      python manage.py collectstatic --no-input &&
+      python manage.py migrate &&
+      python manage.py check &&
+      python create_admin.py &&
       python set_telegram_webhook.py
 
-    startCommand: |
-      gunicorn config.asgi:application -k uvicorn.workers.UvicornWorker --bind 0.0.0.0:$PORT
+    startCommand: >-
+      gunicorn config.asgi:application -k uvicorn.workers.UvicornWorker
+      --bind 0.0.0.0:$PORT
 
     envVars:
       - key: DEBUG
         value: "False"
-
       - key: SECRET_KEY
         sync: false
-
       - key: TELEGRAM_BOT_TOKEN
         sync: false
-
       - key: TELEGRAM_WEBHOOK_SECRET
         sync: false
-
       - key: TELEGRAM_WEBHOOK_URL
-        value: "https://sweets-snacks-home-delivery-3.onrender.com/telegram/webhook/"
-
+        value: "https://sweets-snacks-home-delivery.onrender.com/telegram/webhook/"
       - key: DATABASE_URL
         sync: false
-
       - key: DJANGO_ADMIN_USERNAME
         sync: false
-
       - key: DJANGO_ADMIN_EMAIL
         sync: false
-
       - key: DJANGO_ADMIN_PASSWORD
         sync: false
