@@ -1,0 +1,114 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Payment - {{ order.order_id }}</title>
+    <script src="https://checkout.razorpay.com/v1/checkout.js"></script>
+    <style>
+        * { box-sizing: border-box; }
+        body { margin: 0; font-family: system-ui, -apple-system, Segoe UI, sans-serif; background: #fff7ed; color: #2b2118; }
+        .wrap { max-width: 520px; margin: 0 auto; padding: 20px 16px 32px; }
+        .card { background: #fff; border-radius: 22px; padding: 22px; box-shadow: 0 10px 30px rgba(80,50,20,.12); }
+        .brand { font-size: 28px; font-weight: 800; margin-bottom: 4px; }
+        .muted { color: #75695f; }
+        .total { font-size: 34px; font-weight: 800; margin: 18px 0; }
+        .row { display: flex; justify-content: space-between; gap: 16px; padding: 10px 0; border-bottom: 1px solid #eee5dc; }
+        button { width: 100%; border: 0; border-radius: 14px; padding: 15px; font-size: 17px; font-weight: 750; cursor: pointer; background: #111827; color: white; margin-top: 18px; }
+        button:disabled { opacity: .6; cursor: wait; }
+        .status { display: none; margin-top: 16px; padding: 14px; border-radius: 14px; background: #f3f4f6; }
+        .success { background: #ecfdf5; color: #065f46; }
+        .error { background: #fef2f2; color: #991b1b; }
+    </style>
+</head>
+<body>
+<div class="wrap">
+    <div class="card">
+        <div class="brand">🍬 Sweet & Snacks</div>
+        <div class="muted">Secure online payment</div>
+
+        <div class="row"><span>Order</span><strong>{{ order.order_id }}</strong></div>
+        <div class="row"><span>Customer</span><strong>{{ order.customer_name }}</strong></div>
+        <div class="row"><span>Payment</span><strong>Razorpay</strong></div>
+        <div class="total">₹{{ order.total_amount|floatformat:2 }}</div>
+
+        {% if payment.status == "paid" %}
+            <div id="status" class="status success" style="display:block">✅ Payment already completed. Your order is confirmed.</div>
+        {% else %}
+            <button id="payButton">💳 Pay Securely</button>
+            <div id="status" class="status"></div>
+        {% endif %}
+    </div>
+</div>
+
+{% if payment.status != "paid" %}
+<script>
+const payButton = document.getElementById("payButton");
+const statusBox = document.getElementById("status");
+const csrfToken = "{{ csrf_token }}";
+
+function showStatus(message, ok=false) {
+    statusBox.textContent = message;
+    statusBox.className = "status " + (ok ? "success" : "error");
+    statusBox.style.display = "block";
+}
+
+payButton.addEventListener("click", function () {
+    payButton.disabled = true;
+    payButton.textContent = "⏳ Opening payment...";
+
+    const options = {
+        key: "{{ settings.RAZORPAY_KEY_ID|default:'' }}",
+        amount: "{{ payment.amount|floatformat:0 }}" * 100,
+        currency: "INR",
+        name: "Sweet & Snacks",
+        description: "Order {{ order.order_id }}",
+        order_id: "{{ payment.gateway_order_id }}",
+        prefill: {
+            name: "{{ order.customer_name|escapejs }}",
+            contact: "{{ order.phone|default:''|escapejs }}"
+        },
+        theme: { color: "#111827" },
+        handler: async function (response) {
+            payButton.textContent = "⏳ Verifying payment...";
+            const body = new URLSearchParams(response);
+            const result = await fetch("{% url 'telegram_payment_verify' order.order_id %}", {
+                method: "POST",
+                headers: { "X-CSRFToken": csrfToken },
+                body: body
+            });
+            const data = await result.json();
+            if (data.ok) {
+                showStatus("✅ Payment successful! Order " + data.order_id + " is confirmed.", true);
+                payButton.style.display = "none";
+            } else {
+                showStatus("❌ " + (data.message || "Payment verification failed."));
+                payButton.disabled = false;
+                payButton.textContent = "🔄 Retry Payment";
+            }
+        },
+        modal: {
+            ondismiss: function () {
+                payButton.disabled = false;
+                payButton.textContent = "💳 Pay Securely";
+                showStatus("Payment window closed. Your order is still available.");
+            }
+        }
+    };
+
+    const razorpay = new Razorpay(options);
+    razorpay.on("payment.failed", async function () {
+        await fetch("{% url 'telegram_payment_failed' order.order_id %}", {
+            method: "POST",
+            headers: { "X-CSRFToken": csrfToken }
+        });
+        showStatus("❌ Payment failed. You can retry the payment.");
+        payButton.disabled = false;
+        payButton.textContent = "🔄 Retry Payment";
+    });
+    razorpay.open();
+});
+</script>
+{% endif %}
+</body>
+</html>
