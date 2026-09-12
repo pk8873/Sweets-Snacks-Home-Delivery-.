@@ -9,6 +9,7 @@ services:
       python manage.py collectstatic --no-input
       python manage.py migrate
       python manage.py check
+      python create_admin.py
       python set_telegram_webhook.py
 
     startCommand: |
@@ -31,4 +32,13 @@ services:
         value: "https://sweets-snacks-home-delivery-3.onrender.com/telegram/webhook/"
 
       - key: DATABASE_URL
+        sync: false
+
+      - key: DJANGO_ADMIN_USERNAME
+        sync: false
+
+      - key: DJANGO_ADMIN_EMAIL
+        sync: false
+
+      - key: DJANGO_ADMIN_PASSWORD
         sync: false
