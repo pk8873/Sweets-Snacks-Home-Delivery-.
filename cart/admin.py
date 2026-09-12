@@ -5,48 +5,18 @@ from .models import Cart, CartItem
 
 class CartItemInline(admin.TabularInline):
     model = CartItem
-
     extra = 0
-
-    fields = (
-        "product",
-        "quantity",
-        "price",
-        "subtotal",
-    )
-
-    readonly_fields = (
-        "subtotal",
-    )
+    fields = ("product", "quantity", "quantity_grams", "price", "subtotal")
+    readonly_fields = ("subtotal",)
 
 
 @admin.register(Cart)
 class CartAdmin(admin.ModelAdmin):
-    list_display = (
-        "customer",
-        "total_items_display",
-        "subtotal_display",
-        "updated_at",
-    )
-
-    search_fields = (
-        "customer__name",
-        "customer__phone",
-        "customer__telegram_username",
-    )
-
-    readonly_fields = (
-        "created_at",
-        "updated_at",
-    )
-
-    inlines = [
-        CartItemInline,
-    ]
-
-    ordering = (
-        "-updated_at",
-    )
+    list_display = ("customer", "total_items_display", "subtotal_display", "updated_at")
+    search_fields = ("customer__name", "customer__phone", "customer__telegram_username")
+    readonly_fields = ("created_at", "updated_at")
+    inlines = [CartItemInline]
+    ordering = ("-updated_at",)
 
     @admin.display(description="Total Items")
     def total_items_display(self, obj):
