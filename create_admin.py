@@ -8,28 +8,26 @@ django.setup()
 
 from django.contrib.auth import get_user_model
 
-
 User = get_user_model()
 
-username = os.getenv("DJANGO_ADMIN_USERNAME", "").strip()
+username = os.getenv("DJANGO_ADMIN_USERNAME", "admin").strip() or "admin"
 email = os.getenv("DJANGO_ADMIN_EMAIL", "").strip()
 password = os.getenv("DJANGO_ADMIN_PASSWORD", "")
 
-if not username or not password:
-    print("DJANGO_ADMIN_USERNAME and DJANGO_ADMIN_PASSWORD must be set.")
+if not password:
+    print("ERROR: DJANGO_ADMIN_PASSWORD is not configured. Set it in Render Environment Variables and redeploy.")
     raise SystemExit(1)
 
 user = User.objects.filter(username=username).first()
+created = user is None
 
-if user is None:
+if created:
     user = User(username=username)
-    created = True
-else:
-    created = False
 
 user.email = email
 user.is_staff = True
 user.is_superuser = True
+user.is_active = True
 user.set_password(password)
 user.save()
 
