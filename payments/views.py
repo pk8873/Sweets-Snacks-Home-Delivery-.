@@ -1,4 +1,5 @@
 from asgiref.sync import async_to_sync
+from django.conf import settings
 from django.http import JsonResponse
 from django.shortcuts import get_object_or_404, render
 from django.views.decorators.http import require_GET, require_POST
@@ -22,7 +23,11 @@ def telegram_payment(request, order_id):
     return render(
         request,
         "payments/telegram_payment.html",
-        {"order": order, "payment": payment},
+        {
+            "order": order,
+            "payment": payment,
+            "razorpay_key_id": settings.RAZORPAY_KEY_ID,
+        },
     )
 
 
