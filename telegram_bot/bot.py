@@ -1,10 +1,12 @@
 import html
 import logging
 from decimal import Decimal, ROUND_HALF_UP
+from io import BytesIO
 from urllib.parse import urlsplit
 
 from asgiref.sync import sync_to_async
 from django.conf import settings
+from PIL import Image, ImageOps
 
 from telegram import (
     InlineKeyboardButton,
@@ -25,6 +27,7 @@ from telegram.ext import (
 
 from cart.models import Cart, CartItem
 from customers.models import Customer, CustomerAddress
+from notifications.messages import get_status_message
 from orders.services import (
     build_order_tracking,
     create_order_async,
@@ -138,6 +141,43 @@ def category_icon(name):
 
 def safe(value):
     return html.escape(str(value or ""))
+
+
+def prepare_telegram_photo(product):
+    """Prepare the exact admin-uploaded product image for Telegram.
+
+    Telegram receives an in-memory JPEG with a minimum 800x600 (4:3) canvas.
+    The original image is kept intact inside the canvas using contain, so it is
+    not stretched or cropped. This also avoids relying on a public /media URL.
+    """
+    if not product.image:
+        return None
+
+    try:
+        with product.image.open("rb") as source:
+            image = Image.open(source)
+            image = ImageOps.exif_transpose(image).convert("RGB")
+
+            target_width, target_height = 800, 600
+            contained = ImageOps.contain(
+                image,
+                (target_width, target_height),
+                method=Image.Resampling.LANCZOS,
+            )
+
+            canvas = Image.new("RGB", (target_width, target_height), "white")
+            left = (target_width - contained.width) // 2
+            top = (target_height - contained.height) // 2
+            canvas.paste(contained, (left, top))
+
+            output = BytesIO()
+            output.name = f"product_{product.pk}.jpg"
+            canvas.save(output, format="JPEG", quality=88, optimize=True)
+            output.seek(0)
+            return output
+    except Exception:
+        logger.exception("Unable to prepare product image: %s", product.id)
+        return None
 
 
 # ============================================================
@@ -370,9 +410,10 @@ async def show_category_products(update, category_id):
                 "Tap the product button below to view details."
             )
             try:
-                if product.image:
+                photo = prepare_telegram_photo(product)
+                if photo:
                     await message.reply_photo(
-                        photo=product.image.path,
+                        photo=photo,
                         caption=caption,
                         parse_mode="HTML",
                     )
@@ -489,9 +530,10 @@ async def render_product(update, product, context):
     )
     keyboard = detail_keyboard(product, fav, weight, qty)
     try:
-        if product.image:
+        photo = prepare_telegram_photo(product)
+        if photo:
             await update.effective_message.reply_photo(
-                photo=product.image.path,
+                photo=photo,
                 caption=text,
                 parse_mode="HTML",
                 reply_markup=keyboard,
@@ -962,21 +1004,14 @@ async def show_tracking(update, order_id):
         return
 
     order = details["order"]
-    tracking = await build_order_tracking(order)
-    lines = [
-        f"📦 <b>ORDER TRACKING</b>",
-        f"🆔 {safe(order_id)}",
-        "",
-    ]
-    lines.extend(safe(label) for _, label in tracking["steps"])
-    lines.extend([
-        "",
-        f"Current status: <b>{safe(order.get_order_status_display())}</b>",
-    ])
+    status_message = get_status_message(
+        order.order_id,
+        order.order_status,
+        customer.language or "hi",
+    )
 
     await update.effective_message.reply_text(
-        "\n".join(lines),
-        parse_mode="HTML",
+        status_message,
         reply_markup=InlineKeyboardMarkup([
             [InlineKeyboardButton("🔄 Refresh Status", callback_data=f"track_{order_id}")],
             [InlineKeyboardButton("📦 My Orders", callback_data="orders")],
@@ -1027,9 +1062,10 @@ async def search_results(update, text):
     await update.effective_message.reply_text(f"🔎 <b>Results: {safe(text)}</b>", parse_mode="HTML")
     for p in products:
         caption = f"🍬 <b>{safe(p.name)}</b>\n💰 {safe(price_text(p))}\n{safe(stock_text(p))}"
-        if p.image:
+        photo = prepare_telegram_photo(p)
+        if photo:
             try:
-                await update.effective_message.reply_photo(photo=p.image.path, caption=caption, parse_mode="HTML")
+                await update.effective_message.reply_photo(photo=photo, caption=caption, parse_mode="HTML")
             except Exception:
                 await update.effective_message.reply_text(caption, parse_mode="HTML")
         else:
@@ -1058,9 +1094,10 @@ async def show_favorites(update):
     await update.effective_message.reply_text("❤️ <b>MY FAVORITES</b>", parse_mode="HTML")
     for p in products:
         caption = f"🍬 <b>{safe(p.name)}</b>\n💰 {safe(price_text(p))}\n{safe(stock_text(p))}"
-        if p.image:
+        photo = prepare_telegram_photo(p)
+        if photo:
             try:
-                await update.effective_message.reply_photo(photo=p.image.path, caption=caption, parse_mode="HTML")
+                await update.effective_message.reply_photo(photo=photo, caption=caption, parse_mode="HTML")
             except Exception:
                 await update.effective_message.reply_text(caption, parse_mode="HTML")
         else:
