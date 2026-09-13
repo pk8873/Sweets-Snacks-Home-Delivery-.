@@ -5,94 +5,48 @@ from .models import Category, Product, Favorite
 
 @admin.register(Category)
 class CategoryAdmin(admin.ModelAdmin):
-    list_display = ("name", "active", "created_at")
+    list_display = ("name", "emoji", "active", "created_at")
     list_filter = ("active", "created_at")
     search_fields = ("name", "description")
-    list_editable = ("active",)
+    list_editable = ("emoji", "active")
     readonly_fields = ("created_at",)
     ordering = ("name",)
+
+    fieldsets = (
+        ("Category", {"fields": ("name", "description", "image", "emoji", "active")}),
+        ("Telegram", {"description": "Optional emoji used on Telegram category buttons. Examples: 🍰 🥟 🥤 🎁 🔥", "fields": ("emoji",)}),
+        ("Timestamps", {"fields": ("created_at",)}),
+    )
 
 
 @admin.register(Product)
 class ProductAdmin(admin.ModelAdmin):
     list_display = (
-        "name",
-        "category",
-        "price",
-        "selling_unit",
-        "price_quantity_label",
-        "stock_display",
-        "available",
-        "created_at",
+        "name", "category", "price", "selling_unit", "price_quantity_label",
+        "stock_display", "available", "created_at",
     )
-
-    list_filter = (
-        "category",
-        "selling_unit",
-        "available",
-        "created_at",
-    )
-
+    list_filter = ("category", "selling_unit", "available", "created_at")
     search_fields = ("name", "description", "category__name")
-
-    list_editable = (
-        "price",
-        "selling_unit",
-        "available",
-    )
-
-    readonly_fields = (
-        "created_at",
-        "updated_at",
-        "unit_label",
-        "price_quantity_label",
-        "stock_display",
-    )
-
+    list_editable = ("price", "selling_unit", "available")
+    readonly_fields = ("created_at", "updated_at", "unit_label", "price_quantity_label", "stock_display")
     fieldsets = (
-        (
-            "Product Information",
-            {"fields": ("name", "category", "description", "image")},
-        ),
+        ("Product Information", {"fields": ("name", "category", "description", "image")}),
         (
             "Price & Selling Unit",
             {
-                "description": (
-                    "Choose the real selling unit for this product. "
-                    "Pieces/Packs is for countable items such as burgers, samosas and similar products. "
-                    "Grams is for products priced by gram, and Kilograms is for products priced per kg. "
-                    "Do not use grams for every product."
-                ),
-                "fields": (
-                    "price",
-                    "selling_unit",
-                    "weight_grams",
-                    "unit_label",
-                    "price_quantity_label",
-                ),
+                "description": "Use Pieces/Packs for countable items. Use Grams or Kilograms for weight products.",
+                "fields": ("price", "selling_unit", "weight_grams", "unit_label", "price_quantity_label"),
             },
         ),
         (
             "Inventory",
             {
-                "description": (
-                    "For Pieces/Packs use Stock. For Grams/Kilograms use Stock (grams). "
-                    "The Telegram bot and order system will use the selected selling unit automatically."
-                ),
-                "fields": (
-                    "stock",
-                    "stock_grams",
-                    "stock_display",
-                    "available",
-                ),
+                "description": "For Pieces/Packs use Stock. For Grams/Kilograms use Stock (grams).",
+                "fields": ("stock", "stock_grams", "stock_display", "available"),
             },
         ),
-        (
-            "Timestamps",
-            {"fields": ("created_at", "updated_at")},
-        ),
+        ("Timestamps", {"fields": ("created_at", "updated_at")}),
     )
-
     ordering = ("-created_at",)
 
 
