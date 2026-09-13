@@ -117,13 +117,19 @@ def api(request,action="menu"):
     except (ValueError,KeyError,Category.DoesNotExist,Product.DoesNotExist):return _error("Invalid request or unavailable item.")
     except Exception as exc:return _error(str(exc),500)
 
-@csrf_exempt
+# Product images are intentionally public because Baileys/WhatsApp fetches the image URL
+# itself and cannot attach the private X-WhatsApp-Bot-Secret header. Shopping data APIs
+# remain protected by the shared secret above.
 def product_image(request,product_id):
-    if not _authorized(request):return _error("Unauthorized.",401)
     p=Product.objects.filter(id=product_id).first()
     if not p or not p.image:return _error("Image not found.",404)
     try:
         path=Path(p.image.path)
         if not path.exists():return _error("Image file is missing.",404)
-        return FileResponse(open(path,"rb"),content_type="image/jpeg")
+        content_type="image/jpeg"
+        name=path.name.lower()
+        if name.endswith(".png"):content_type="image/png"
+        elif name.endswith(".webp"):content_type="image/webp"
+        elif name.endswith(".gif"):content_type="image/gif"
+        return FileResponse(open(path,"rb"),content_type=content_type)
     except Exception:return _error("Image could not be opened.",404)
