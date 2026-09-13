@@ -13,9 +13,14 @@ class CategoryAdmin(admin.ModelAdmin):
     ordering = ("name",)
 
     fieldsets = (
-        ("Category", {"fields": ("name", "description", "image", "emoji", "active")}),
-        ("Telegram", {"description": "Optional emoji used on Telegram category buttons. Examples: 🍰 🥟 🥤 🎁 🔥", "fields": ("emoji",)}),
-        ("Timestamps", {"fields": ("created_at",)}),
+        (
+            "Category",
+            {"fields": ("name", "description", "image", "emoji", "active")},
+        ),
+        (
+            "Timestamps",
+            {"fields": ("created_at",)},
+        ),
     )
 
 
