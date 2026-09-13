@@ -31,8 +31,19 @@ services:
         sync: false
       - key: DJANGO_ADMIN_PASSWORD
         sync: false
+
+      # Cloudinary Free - preferred single variable:
+      # cloudinary://API_KEY:API_SECRET@CLOUD_NAME
       - key: CLOUDINARY_URL
         sync: false
+      # Optional alternative to CLOUDINARY_URL:
+      - key: CLOUDINARY_CLOUD_NAME
+        sync: false
+      - key: CLOUDINARY_API_KEY
+        sync: false
+      - key: CLOUDINARY_API_SECRET
+        sync: false
+
       - key: WHATSAPP_BOT_SECRET
         sync: false
       - key: WHATSAPP_DATABASE_URL
