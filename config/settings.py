@@ -1,5 +1,6 @@
 import os
 from pathlib import Path
+from urllib.parse import urlparse
 
 from dotenv import load_dotenv
 import dj_database_url
@@ -205,9 +206,41 @@ STATICFILES_DIRS = [
 ]
 
 # Render Free has an ephemeral filesystem. Product/category images therefore
-# use Cloudinary when CLOUDINARY_URL is configured. Local development keeps
-# using the normal local filesystem when Cloudinary credentials are absent.
-USE_CLOUDINARY = bool(os.getenv("CLOUDINARY_URL", "").strip())
+# use Cloudinary when valid Cloudinary credentials are configured.
+# The preferred value is CLOUDINARY_URL=cloudinary://API_KEY:API_SECRET@CLOUD_NAME.
+# Separate CLOUDINARY_CLOUD_NAME/API_KEY/API_SECRET variables are also supported.
+cloudinary_url = os.getenv("CLOUDINARY_URL", "").strip()
+
+if not cloudinary_url:
+    cloudinary_cloud_name = os.getenv("CLOUDINARY_CLOUD_NAME", "").strip()
+    cloudinary_api_key = os.getenv("CLOUDINARY_API_KEY", "").strip()
+    cloudinary_api_secret = os.getenv("CLOUDINARY_API_SECRET", "").strip()
+
+    if all((cloudinary_cloud_name, cloudinary_api_key, cloudinary_api_secret)):
+        cloudinary_url = (
+            f"cloudinary://{cloudinary_api_key}:{cloudinary_api_secret}"
+            f"@{cloudinary_cloud_name}"
+        )
+        os.environ["CLOUDINARY_URL"] = cloudinary_url
+
+cloudinary_parts = urlparse(cloudinary_url) if cloudinary_url else None
+cloudinary_configured = bool(
+    cloudinary_parts
+    and cloudinary_parts.scheme == "cloudinary"
+    and cloudinary_parts.hostname
+    and cloudinary_parts.username
+    and cloudinary_parts.password
+)
+
+if RENDER and cloudinary_url and not cloudinary_configured:
+    raise RuntimeError(
+        "CLOUDINARY_URL is incomplete. Set it to "
+        "cloudinary://API_KEY:API_SECRET@CLOUD_NAME in Render, "
+        "or set CLOUDINARY_CLOUD_NAME, CLOUDINARY_API_KEY and "
+        "CLOUDINARY_API_SECRET."
+    )
+
+USE_CLOUDINARY = cloudinary_configured
 
 STORAGES = {
     "default": {
