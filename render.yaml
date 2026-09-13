@@ -37,6 +37,8 @@ services:
         sync: false
       - key: WHATSAPP_DATABASE_URL
         sync: false
+      - key: WHATSAPP_PHONE_NUMBER
+        sync: false
       - key: WHATSAPP_PORT
         value: "3000"
       - key: WHATSAPP_AUTH_DIR
