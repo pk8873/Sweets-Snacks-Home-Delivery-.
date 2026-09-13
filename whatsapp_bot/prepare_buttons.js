@@ -4,9 +4,8 @@ import { execFileSync } from "node:child_process";
 const file = new URL("./index.js", import.meta.url);
 let source = fs.readFileSync(file, "utf8");
 
-// V16: use WhatsApp Native Flow quick-reply buttons instead of the legacy
-// `buttons`/`sections` message format. Recent WhatsApp clients/Baileys builds
-// may display legacy buttons as plain text, which makes them look unclickable.
+// V16: replace legacy WhatsApp buttons/lists with Native Flow quick replies.
+// Recent WhatsApp clients may render the legacy format without clickable UI.
 const nativeMarker = "WHATSAPP_NATIVE_FLOW_BUTTONS_V16";
 if (!source.includes(nativeMarker)) {
   const buttonsPattern = /async function buttons\(sock, jid, text, items\) \{[\s\S]*?\n\}\nasync function list/;
@@ -29,11 +28,12 @@ if (!source.includes(nativeMarker)) {
   } catch (error) {
     console.error("Native Flow quick-reply send failed:", error?.message || error);
     await sock.sendMessage(jid, {
-      text: \\`${text}\\n\\n${clean.map((x, i) => \\`${i + 1}. ${x.text}\\`).join("\\n")}\\`,
+      text: text + "\\n\\n" + clean.map((x, i) => (i + 1) + ". " + x.text).join("\\n"),
     });
   }
 }
 async function list`;
+
   const patchedButtons = source.replace(buttonsPattern, buttonsReplacement);
   if (patchedButtons === source) throw new Error("Unable to replace WhatsApp buttons() function for V16.");
   source = patchedButtons;
@@ -51,8 +51,9 @@ async function list`;
 
   try {
     if (interactiveButtons.length) {
+      const suffix = clean.length > 3 ? "\\n\\nMore options are available below." : "";
       await sock.sendMessage(jid, {
-        text: `${text}\\n\\n${clean.length > 3 ? "More options are available below." : ""}`.trim(),
+        text: text + suffix,
         footer: "Sweet & Snacks",
         interactiveButtons,
       });
@@ -62,23 +63,19 @@ async function list`;
   } catch (error) {
     console.error("Native Flow list send failed:", error?.message || error);
     await sock.sendMessage(jid, {
-      text: `${text}\\n\\n${clean.map((x, i) => `${i + 1}. ${x.title}`).join("\\n")}`,
+      text: text + "\\n\\n" + clean.map((x, i) => (i + 1) + ". " + x.title).join("\\n"),
     });
   }
 }
 async function home`;
+
   const patchedList = source.replace(listPattern, listReplacement);
   if (patchedList === source) throw new Error("Unable to replace WhatsApp list() function for V16.");
   source = patchedList;
-
-  source = `// ${nativeMarker}\\n${source}`;
-  fs.writeFileSync(file, source);
-  console.log("WhatsApp Native Flow button/list patch V16 applied.");
-} else {
-  console.log("WhatsApp Native Flow button/list patch V16 already applied.");
+  source = `// ${nativeMarker}\n${source}`;
 }
 
-// V17: accept all common native-flow and legacy response payload shapes.
+// V17: accept common legacy, template and Native Flow response payloads.
 const actionMarker = "WHATSAPP_ACTION_PARSER_V17";
 if (!source.includes(actionMarker)) {
   const actionPattern = /const actionOf = \(m\) => \{[\s\S]*?\};\nconst incomingLocation/;
@@ -124,10 +121,10 @@ const incomingLocation`;
   const patchedAction = source.replace(actionPattern, actionReplacement);
   if (patchedAction === source) throw new Error("Unable to replace WhatsApp action parser for V17.");
   source = patchedAction;
-  source = `// ${actionMarker}\\n${source}`;
+  source = `// ${actionMarker}\n${source}`;
 }
 
-// V17 text parser also recognizes native-flow selected text.
+// V17: recognize additional text fields sent by interactive replies.
 const textMarker = "WHATSAPP_TEXT_PARSER_V17";
 if (!source.includes(textMarker)) {
   const textPattern = /const textOf = \(m\) => \{[\s\S]*?\};\nconst actionOf/;
@@ -151,11 +148,9 @@ const actionOf`;
   const patchedText = source.replace(textPattern, textReplacement);
   if (patchedText === source) throw new Error("Unable to replace WhatsApp text parser for V17.");
   source = patchedText;
-  source = `// ${textMarker}\\n${source}`;
+  source = `// ${textMarker}\n${source}`;
 }
 
-// Keep the source deploy-safe: fail the Render build/startup if a malformed
-// generated JavaScript file is ever produced.
-execFileSync(process.execPath, ["--check", file.pathname], { stdio: "inherit" });
 fs.writeFileSync(file, source);
-console.log("WhatsApp button/action compatibility patches V16/V17 applied; JavaScript syntax check passed.");
+execFileSync(process.execPath, ["--check", file.pathname], { stdio: "inherit" });
+console.log("WhatsApp Native Flow button/action patches V16/V17 applied; JavaScript syntax check passed.");
