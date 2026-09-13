@@ -12,20 +12,13 @@ export const getFavorites=p=>post("favorites/",p);
 export const toggleFavorite=p=>post("favorite/toggle/",p);
 export const getCart=p=>post("cart/",p);
 export const addToCart=p=>post("cart/add/",p);
+export const changeCartItem=p=>post("cart/change/",p);
 export const removeCartItem=p=>post("cart/remove/",p);
+export const clearCart=p=>post("cart/clear/",p);
 export const saveAddress=p=>post("address/",p);
+export const setLanguage=p=>post("language/",p);
 export const checkout=p=>post("checkout/",p);
 export const getOrders=p=>post("orders/",p);
 export const getOrder=p=>post("order/",p);
 export const reorder=p=>post("reorder/",p);
-
-// Baileys cannot attach our auth header when it fetches an image URL itself.
-// Download the protected image in Node with the secret, then pass the bytes to Baileys.
-export const downloadProductImage=async(url)=>{
-  if(!url)return null;
-  const response=await fetch(url,{headers:{"X-WhatsApp-Bot-Secret":SECRET}});
-  if(!response.ok)throw new Error(`Product image request failed: ${response.status}`);
-  const type=response.headers.get("content-type")||"image/jpeg";
-  if(!type.startsWith("image/"))throw new Error("Product image response is not an image.");
-  return Buffer.from(await response.arrayBuffer());
-};
+export const downloadProductImage=async(url)=>{if(!url)return null;const response=await fetch(url,{headers:{"X-WhatsApp-Bot-Secret":SECRET}});if(!response.ok)throw new Error(`Product image request failed: ${response.status}`);const type=response.headers.get("content-type")||"image/jpeg";if(!type.startsWith("image/"))throw new Error("Product image response is not an image.");return Buffer.from(await response.arrayBuffer());};
