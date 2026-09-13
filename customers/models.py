@@ -9,7 +9,9 @@ class Customer(models.Model):
     ]
 
     telegram_user_id = models.BigIntegerField(
-        unique=True
+        unique=True,
+        null=True,
+        blank=True,
     )
 
     telegram_username = models.CharField(
