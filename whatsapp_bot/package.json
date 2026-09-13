@@ -14,8 +14,10 @@
   "dependencies": {
     "@hapi/boom": "^10.0.1",
     "@whiskeysockets/baileys": "6.7.24",
+    "baileysauth": "^1.2.0",
     "dotenv": "^17.2.2",
     "pino": "^10.0.0",
+    "pg": "^8.16.3",
     "qrcode-terminal": "^0.12.0"
   }
 }
