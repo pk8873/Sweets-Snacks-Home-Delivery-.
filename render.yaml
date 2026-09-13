@@ -2,28 +2,19 @@ services:
   - type: web
     name: sweets-snacks-home-delivery
     env: python
-    plan: 0.5c-512mb
-
-    disk:
-      name: django-media
-      mountPath: /var/data
-      sizeGB: 1
+    plan: free
 
     buildCommand: >-
       pip install -r requirements.txt &&
-      python manage.py collectstatic --no-input &&
-      python manage.py migrate &&
-      python manage.py check &&
-      python create_admin.py &&
-      python set_telegram_webhook.py
+      npm --prefix whatsapp_bot install --omit=dev
 
-    startCommand: >-
-      gunicorn config.asgi:application -k uvicorn.workers.UvicornWorker
-      --bind 0.0.0.0:$PORT
+    startCommand: bash start_render.sh
 
     envVars:
       - key: DEBUG
         value: "False"
+      - key: RENDER
+        value: "true"
       - key: SECRET_KEY
         sync: false
       - key: TELEGRAM_BOT_TOKEN
@@ -40,38 +31,17 @@ services:
         sync: false
       - key: DJANGO_ADMIN_PASSWORD
         sync: false
-      - key: MEDIA_ROOT
-        value: "/var/data/media"
+      - key: CLOUDINARY_URL
+        sync: false
       - key: WHATSAPP_BOT_SECRET
         sync: false
-      - key: WHATSAPP_BOT_URL
-        value: "https://sweets-snacks-whatsapp-bot.onrender.com"
+      - key: WHATSAPP_DATABASE_URL
+        sync: false
+      - key: WHATSAPP_PORT
+        value: "3000"
+      - key: WHATSAPP_AUTH_DIR
+        value: "./auth_info"
       - key: PAYMENT_KEY_ID
         sync: false
       - key: PAYMENT_KEY_SECRET
         sync: false
-
-  - type: web
-    name: sweets-snacks-whatsapp-bot
-    env: node
-    plan: 0.5c-512mb
-    rootDir: whatsapp_bot
-
-    disk:
-      name: whatsapp-auth
-      mountPath: /var/data
-      sizeGB: 1
-
-    buildCommand: npm install
-    startCommand: npm start
-    healthCheckPath: /health
-
-    envVars:
-      - key: NODE_ENV
-        value: "production"
-      - key: DJANGO_API_URL
-        value: "https://sweets-snacks-home-delivery.onrender.com/whatsapp/api"
-      - key: WHATSAPP_BOT_SECRET
-        sync: false
-      - key: WHATSAPP_AUTH_DIR
-        value: "/var/data/auth_info"
