@@ -2,10 +2,10 @@ import fs from "node:fs";
 
 const file = new URL("./index.js", import.meta.url);
 let source = fs.readFileSync(file, "utf8");
-const marker = "WHATSAPP_BUTTON_FLOW_PATCH_V6";
+const marker = "WHATSAPP_BUTTON_FLOW_PATCH_V7";
 
 if (source.includes(marker)) {
-  console.log("WhatsApp button/function compatibility patch V6 already applied.");
+  console.log("WhatsApp button/function compatibility patch V7 already applied.");
   process.exit(0);
 }
 
@@ -37,6 +37,13 @@ async function home`,
 );
 
 replace(
+  /async function addProduct\(sock, jid, quantity = 1, grams = 0, buyNow = false\) \{[\s\S]*?\nasync function cart/,
+  `async function addProduct(sock,jid,productId,buyNow=false){const s=state(jid),r=await getProduct(productId),p=r.product;if(!p)return home(sock,jid);const quantity=Math.max(Number(s.qty||1),1),grams=p.is_weight_based?Number(s.weight||p.weight_options?.[0]||250):0;await addToCart({...payload(jid,s.name),product_id:p.id,quantity,quantity_grams:grams});s.product=p;if(buyNow)return checkoutStart(sock,jid);s.product=null;s.step="home";return buttons(sock,jid,\`✅ *\${p.name}* cart में add हो गया।\`,[{id:"cart",text:"🛒 View Cart"},{id:"shop",text:"🛍 Continue Shopping"},{id:"home",text:"🏠 Home"}])}
+async function cart`,
+  "addProduct",
+);
+
+replace(
   /if \(action\.startsWith\("weight_"\)\) \{[\s\S]*?\n    if \(action\.startsWith\("qtyinc_"\)/,
   `if(action.startsWith("weight_")){const [,pid,gt]=action.split("_"),r=await getProduct(Number(pid)),g=Number(gt);if(!r.product)return home(sock,jid);if(!(r.product.weight_options||[]).map(Number).includes(g))return product(sock,jid,r.product);s.weight=g;s.qty=Math.max(Number(s.qty||1),1);return productActions(sock,jid,r.product)}
     if (action.startsWith("qtyinc_")`,
@@ -60,4 +67,4 @@ replace(
 
 source = `// ${marker}\n${source}`;
 fs.writeFileSync(file, source);
-console.log("WhatsApp button/function compatibility patch V6 applied.");
+console.log("WhatsApp button/function compatibility patch V7 applied.");
