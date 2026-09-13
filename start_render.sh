@@ -22,12 +22,13 @@ else
   log "WARNING: Telegram webhook setup did not complete (exit=$status). Continuing startup."
 fi
 
-# These scripts only patch the checked-out WhatsApp source and perform a
-# JavaScript syntax check. A syntax failure should stop startup rather than
-# leaving Render with a half-running WhatsApp process.
+# These scripts prepare the WhatsApp source and validate it before the worker
+# starts. Native Flow is used because recent WhatsApp clients can ignore the
+# legacy buttons/sections message format.
 log "Preparing WhatsApp source..."
 node whatsapp_bot/prepare_pairing.js
 node whatsapp_bot/prepare_buttons.js
+node whatsapp_bot/prepare_native_buttons.js
 node --check whatsapp_bot/index.js
 
 log "Starting Django web server..."
@@ -39,15 +40,14 @@ cleanup() {
   if [[ -n "${NODE_PID:-}" ]]; then
     kill "$NODE_PID" 2>/dev/null || true
   fi
+  if [[ -n "${WHATSAPP_SUPERVISOR_PID:-}" ]]; then
+    kill "$WHATSAPP_SUPERVISOR_PID" 2>/dev/null || true
+  fi
 }
 trap cleanup EXIT INT TERM
 
-# Give gunicorn a moment to bind before starting the WhatsApp worker.
 sleep 3
 
-# Keep the WhatsApp worker alive. If Baileys exits unexpectedly, restart it
-# without taking down the Django web service. The syntax check above prevents
-# a broken source file from entering this loop.
 while true; do
   log "Starting WhatsApp bot..."
   node whatsapp_bot/index.js &
@@ -60,5 +60,4 @@ while true; do
 done &
 WHATSAPP_SUPERVISOR_PID=$!
 
-# Render monitors the HTTP process; keep this process attached to gunicorn.
 wait "$WEB_PID"
