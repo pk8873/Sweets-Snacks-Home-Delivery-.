@@ -30,9 +30,8 @@ replaceRequired(
     });
   } catch (error) {
     logger.error({ error: error?.message || error }, "Native Flow button send failed");
-    await sock.sendMessage(jid, {
-      text: text + "\\n\\n" + clean.map((x, i) => \`${i + 1}. \${x.text}\`).join("\\n"),
-    });
+    const fallback = clean.map((x, i) => String(i + 1) + ". " + String(x.text || "")).join("\\n");
+    await sock.sendMessage(jid, { text: text + "\\n\\n" + fallback });
   }
 }
 async function list`,
@@ -62,9 +61,8 @@ replaceRequired(
     }
   } catch (error) {
     logger.error({ error: error?.message || error }, "Native Flow list send failed");
-    await sock.sendMessage(jid, {
-      text: text + "\\n\\n" + clean.map((x, i) => \`${i + 1}. \${x.title}\`).join("\\n"),
-    });
+    const fallback = clean.map((x, i) => String(i + 1) + ". " + String(x.title || "")).join("\\n");
+    await sock.sendMessage(jid, { text: text + "\\n\\n" + fallback });
   }
 }
 async function home`,
