@@ -291,6 +291,13 @@ def change_cart_item(user_id, item_id, delta):
 
 async def show_orders(update):
     customer = await bot.get_customer(update.effective_user.id)
+    if not customer:
+        await update.effective_message.reply_text(
+            "📦 आपका customer profile नहीं मिला। कृपया /start फिर से भेजें।",
+            reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("🏠 Main Menu", callback_data="main_menu")]]),
+        )
+        return
+
     orders = await bot.get_customer_orders(customer.id)
     if not orders:
         await update.effective_message.reply_text(
@@ -298,10 +305,14 @@ async def show_orders(update):
             reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("🛍 Shop Now", callback_data="categories")]]),
         )
         return
+
     # Keep the bot light: only the 5 latest orders are shown in compact rows.
-    await update.effective_message.reply_text("📦 <b>MY ORDERS</b>\nRecent 5 orders", parse_mode="HTML")
+    await update.effective_message.reply_text(
+        "📦 <b>MY ORDERS</b>\n\nRecent 5 orders:",
+        parse_mode="HTML",
+    )
     for index, order in enumerate(orders[:5], 1):
-        line = f"{index}. 🗓 {order.created_at:%d %b} • {order.created_at:%H:%M} • {money(order.total_amount)}"
+        line = f"{index}. 🗓 {order.created_at:%d %b} • {order.created_at:%H:%M} • {bot.money(order.total_amount)}"
         await update.effective_message.reply_text(
             line,
             reply_markup=InlineKeyboardMarkup([
