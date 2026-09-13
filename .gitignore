@@ -13,3 +13,9 @@ __pycache__/
 
 .vscode/
 .idea/
+
+# Baileys WhatsApp session credentials
+whatsapp_bot/auth_info/
+whatsapp_bot/.wwebjs_auth/
+whatsapp_bot/.wwebjs_cache/
+whatsapp_bot/node_modules/
