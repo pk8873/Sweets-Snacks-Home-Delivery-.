@@ -36,7 +36,7 @@ def _contact(data):
 def _product_data(request,p):
     image_url=request.build_absolute_uri(f"/whatsapp/api/products/{p.id}/image/") if p.image else None
     base=max(int(p.weight_grams or 1000),250); weights=[g for g in (250,500,750,1000) if g<=base]
-    return {"id":p.id,"name":p.name,"description":p.description,"price":str(p.price),"selling_unit":p.selling_unit,"is_weight_based":p.is_weight_based,"weight_grams":p.weight_grams,"stock":p.stock,"stock_grams":p.stock_grams,"available":p.available,"price_quantity_label":p.price_quantity_label,"stock_display":p.stock_display,"image_url":image_url,"category":p.category.name,"category_emoji":p.category.emoji or "🍽️","weight_options":weights}
+    return {"id":p.id,"name":p.name,"description":p.description,"price":str(p.price),"selling_unit":p.selling_unit,"is_weight_based":p.is_weight_based,"weight_grams":p.weight_grams,"stock":p.stock,"stock_grams":p.stock_grams,"available":p.available,"price_quantity_label":p.price_quantity_label,"stock_display":p.stock_display,"image_url":image_url,"category":p.category.name,"category_emoji":p.category.emoji or "🍽️","category_id":p.category_id,"weight_options":weights}
 
 @csrf_exempt
 def api(request,action="menu"):
@@ -59,6 +59,10 @@ def api(request,action="menu"):
             return JsonResponse({"ok":True,"products":[_product_data(request,p) for p in ps]})
         if action=="customer":
             x=_contact(data);a=x.customer.addresses.filter(is_default=True).first();return JsonResponse({"ok":True,"customer":{"id":x.customer_id,"name":x.customer.name,"phone":x.customer.phone or x.phone,"language":x.customer.language},"contact":{"wa_id":x.wa_id},"address":None if not a else {"id":a.id,"address":a.address,"city":a.city,"pincode":a.pincode}})
+        if action=="language":
+            x=_contact(data);lang=str(data.get("language") or "hi").lower()
+            if lang not in {"hi","en"}:raise ValueError("Invalid language.")
+            x.customer.language=lang;x.customer.save(update_fields=["language","updated_at"]);return JsonResponse({"ok":True,"language":lang})
         if action=="favorites":
             x=_contact(data);ps=Product.objects.filter(favorites__customer=x.customer,available=True).select_related("category").order_by("name");return JsonResponse({"ok":True,"products":[_product_data(request,p) for p in ps]})
         if action=="favorite/toggle":
@@ -82,8 +86,19 @@ def api(request,action="menu"):
             if p.is_weight_based and n*g>p.stock_grams:raise ValueError(f"Only {p.stock_grams}g available.")
             if not p.is_weight_based and n>p.stock:raise ValueError(f"Only {p.stock} available.")
             item.quantity=n;item.price=p.price;item.save();return JsonResponse({"ok":True,"message":"Added to cart.","cart_item_id":item.id})
+        if action=="cart/change":
+            x=_contact(data);item=CartItem.objects.select_related("product").filter(id=int(data["cart_item_id"]),cart__customer=x.customer).first()
+            if not item:raise ValueError("Cart item not found.")
+            delta=int(data.get("delta",0));new_qty=item.quantity+delta
+            if new_qty<=0:item.delete();return JsonResponse({"ok":True,"message":"Item removed.","quantity":0})
+            p=item.product
+            if p.is_weight_based and new_qty*item.quantity_grams>p.stock_grams:raise ValueError(f"Only {p.stock_grams}g available.")
+            if not p.is_weight_based and new_qty>p.stock:raise ValueError(f"Only {p.stock} available.")
+            item.quantity=new_qty;item.save(update_fields=["quantity"]);return JsonResponse({"ok":True,"message":"Cart updated.","quantity":new_qty})
         if action=="cart/remove":
             x=_contact(data);deleted,_=CartItem.objects.filter(id=int(data["cart_item_id"]),cart__customer=x.customer).delete();return JsonResponse({"ok":True,"deleted":bool(deleted)})
+        if action=="cart/clear":
+            x=_contact(data);CartItem.objects.filter(cart__customer=x.customer).delete();return JsonResponse({"ok":True,"message":"Cart cleared."})
         if action=="address":
             x=_contact(data);a=str(data.get("address") or "").strip();city=str(data.get("city") or "").strip()[:100];pin=str(data.get("pincode") or "").strip()[:10]
             if not a or not city or not pin:raise ValueError("Address, city and pincode are required.")
@@ -116,13 +131,8 @@ def api(request,action="menu"):
     except (ValueError,KeyError,Category.DoesNotExist,Product.DoesNotExist):return _error("Invalid request or unavailable item.")
     except Exception as exc:return _error(str(exc),500)
 
-# Product images are intentionally public because Baileys/WhatsApp fetches the image URL
-# itself and cannot attach the private X-WhatsApp-Bot-Secret header. When Cloudinary is
-# enabled, the image is stored remotely and this endpoint simply redirects to its CDN URL.
 def product_image(request,product_id):
     p=Product.objects.filter(id=product_id).first()
     if not p or not p.image:return _error("Image not found.",404)
-    try:
-        return HttpResponseRedirect(p.image.url)
-    except Exception:
-        return _error("Image could not be opened.",404)
+    try:return HttpResponseRedirect(p.image.url)
+    except Exception:return _error("Image could not be opened.",404)
