@@ -67,6 +67,7 @@ INSTALLED_APPS = [
     "delivery",
     "notifications.apps.NotificationsConfig",
     "telegram_bot",
+    "whatsapp_api.apps.WhatsappApiConfig",
 ]
 
 
@@ -244,6 +245,21 @@ TELEGRAM_WEBHOOK_SECRET = os.getenv(
 
 TELEGRAM_WEBHOOK_URL = os.getenv(
     "TELEGRAM_WEBHOOK_URL",
+    "",
+).strip()
+
+
+# ============================================================
+# WHATSAPP / BAILEYS
+# ============================================================
+
+WHATSAPP_BOT_SECRET = os.getenv(
+    "WHATSAPP_BOT_SECRET",
+    "",
+).strip()
+
+WHATSAPP_BOT_URL = os.getenv(
+    "WHATSAPP_BOT_URL",
     "",
 ).strip()
 
