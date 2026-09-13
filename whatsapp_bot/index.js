@@ -1,7 +1,7 @@
 import "dotenv/config";
 import http from "node:http";
 import { Boom } from "@hapi/boom";
-import makeWASocket, { Browsers, DisconnectReason } from "@whiskeysockets/baileys";
+import makeWASocket, { Browsers, DisconnectReason, fetchLatestWaWebVersion } from "@whiskeysockets/baileys";
 import { Pool } from "pg";
 import { usePostgresAuthState } from "./postgres_auth.js";
 import P from "pino";
