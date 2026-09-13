@@ -1,8 +1,7 @@
 import json
 import os
 from decimal import Decimal
-from pathlib import Path
-from django.http import FileResponse, JsonResponse
+from django.http import JsonResponse, HttpResponseRedirect
 from django.views.decorators.csrf import csrf_exempt
 from cart.models import Cart, CartItem
 from customers.models import Customer, CustomerAddress
@@ -118,18 +117,12 @@ def api(request,action="menu"):
     except Exception as exc:return _error(str(exc),500)
 
 # Product images are intentionally public because Baileys/WhatsApp fetches the image URL
-# itself and cannot attach the private X-WhatsApp-Bot-Secret header. Shopping data APIs
-# remain protected by the shared secret above.
+# itself and cannot attach the private X-WhatsApp-Bot-Secret header. When Cloudinary is
+# enabled, the image is stored remotely and this endpoint simply redirects to its CDN URL.
 def product_image(request,product_id):
     p=Product.objects.filter(id=product_id).first()
     if not p or not p.image:return _error("Image not found.",404)
     try:
-        path=Path(p.image.path)
-        if not path.exists():return _error("Image file is missing.",404)
-        content_type="image/jpeg"
-        name=path.name.lower()
-        if name.endswith(".png"):content_type="image/png"
-        elif name.endswith(".webp"):content_type="image/webp"
-        elif name.endswith(".gif"):content_type="image/gif"
-        return FileResponse(open(path,"rb"),content_type=content_type)
-    except Exception:return _error("Image could not be opened.",404)
+        return HttpResponseRedirect(p.image.url)
+    except Exception:
+        return _error("Image could not be opened.",404)
