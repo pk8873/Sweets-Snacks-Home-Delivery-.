@@ -12,6 +12,7 @@ urlpatterns = [
     path("admin/", admin.site.urls),
     path("health/", health_check, name="health"),
     path("telegram/", include("telegram_bot.urls")),
+    path("whatsapp/api/", include("whatsapp_api.urls")),
     path("payments/", include("payments.urls")),
 ]
 
