@@ -1,9 +1,7 @@
 #!/usr/bin/env bash
 set -u
 
-log() {
-  echo "[render-start] $*"
-}
+log() { echo "[render-start] $*"; }
 
 log "Starting Django initialization..."
 python manage.py collectstatic --no-input
@@ -11,9 +9,6 @@ python manage.py migrate
 python manage.py check
 python create_admin.py
 
-# Webhook setup is useful but must not hold the Render startup forever if
-# Telegram is temporarily unreachable. The webhook can be configured again
-# on the next restart/deploy.
 log "Configuring Telegram webhook (30 second timeout)..."
 if timeout 30s python set_telegram_webhook.py; then
   log "Telegram webhook configured."
@@ -22,13 +17,11 @@ else
   log "WARNING: Telegram webhook setup did not complete (exit=$status). Continuing startup."
 fi
 
-# These scripts prepare the WhatsApp source and validate it before the worker
-# starts. Native Flow is used because recent WhatsApp clients can ignore the
-# legacy buttons/sections message format.
 log "Preparing WhatsApp source..."
 node whatsapp_bot/prepare_pairing.js
 node whatsapp_bot/prepare_buttons.js
 node whatsapp_bot/prepare_native_buttons.js
+node whatsapp_bot/prepare_buttons_final.js
 node --check whatsapp_bot/index.js
 
 log "Starting Django web server..."
@@ -37,12 +30,8 @@ WEB_PID=$!
 
 cleanup() {
   kill "$WEB_PID" 2>/dev/null || true
-  if [[ -n "${NODE_PID:-}" ]]; then
-    kill "$NODE_PID" 2>/dev/null || true
-  fi
-  if [[ -n "${WHATSAPP_SUPERVISOR_PID:-}" ]]; then
-    kill "$WHATSAPP_SUPERVISOR_PID" 2>/dev/null || true
-  fi
+  if [[ -n "${NODE_PID:-}" ]]; then kill "$NODE_PID" 2>/dev/null || true; fi
+  if [[ -n "${WHATSAPP_SUPERVISOR_PID:-}" ]]; then kill "$WHATSAPP_SUPERVISOR_PID" 2>/dev/null || true; fi
 }
 trap cleanup EXIT INT TERM
 
@@ -52,7 +41,6 @@ while true; do
   log "Starting WhatsApp bot..."
   node whatsapp_bot/index.js &
   NODE_PID=$!
-
   wait "$NODE_PID"
   status=$?
   log "WhatsApp bot exited with status $status; restarting in 5 seconds..."
