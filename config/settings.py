@@ -217,9 +217,10 @@ STORAGES = {
 # ============================================================
 # MEDIA
 # ============================================================
-
+# On Render, MEDIA_ROOT is placed on the persistent disk mounted
+# at /var/data. Locally it continues to use ./media.
 MEDIA_URL = "/media/"
-MEDIA_ROOT = BASE_DIR / "media"
+MEDIA_ROOT = Path(os.getenv("MEDIA_ROOT", str(BASE_DIR / "media")))
 
 
 # ============================================================
@@ -257,64 +258,3 @@ WHATSAPP_BOT_SECRET = os.getenv(
     "WHATSAPP_BOT_SECRET",
     "",
 ).strip()
-
-WHATSAPP_BOT_URL = os.getenv(
-    "WHATSAPP_BOT_URL",
-    "",
-).strip()
-
-
-# ============================================================
-# RAZORPAY
-# ============================================================
-
-RAZORPAY_KEY_ID = os.getenv(
-    "PAYMENT_KEY_ID",
-    "",
-)
-
-RAZORPAY_KEY_SECRET = os.getenv(
-    "PAYMENT_KEY_SECRET",
-    "",
-)
-
-
-# ============================================================
-# CSRF
-# ============================================================
-
-CSRF_TRUSTED_ORIGINS = [
-    "http://127.0.0.1:8000",
-    "http://localhost:8000",
-]
-
-if RENDER_EXTERNAL_HOSTNAME:
-    CSRF_TRUSTED_ORIGINS.append(
-        f"https://{RENDER_EXTERNAL_HOSTNAME}"
-    )
-
-
-# ============================================================
-# SECURITY HEADERS / PROXY
-# ============================================================
-
-SECURE_CONTENT_TYPE_NOSNIFF = True
-X_FRAME_OPTIONS = "DENY"
-SECURE_REFERRER_POLICY = "same-origin"
-
-# Render terminates TLS and forwards the original scheme.
-SECURE_PROXY_SSL_HEADER = (
-    "HTTP_X_FORWARDED_PROTO",
-    "https",
-)
-
-SECURE_SSL_REDIRECT = not DEBUG
-
-if not DEBUG:
-    SESSION_COOKIE_SECURE = True
-    CSRF_COOKIE_SECURE = True
-    SECURE_HSTS_SECONDS = 31536000
-    SECURE_HSTS_INCLUDE_SUBDOMAINS = True
-    SECURE_HSTS_PRELOAD = True
-
-# Configure Telegram webhook and Render deployment
