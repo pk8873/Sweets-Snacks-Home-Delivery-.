@@ -19,9 +19,7 @@ fi
 
 log "Preparing WhatsApp source..."
 node whatsapp_bot/prepare_pairing.js
-node whatsapp_bot/prepare_buttons.js
-node whatsapp_bot/prepare_native_buttons.js
-node whatsapp_bot/prepare_buttons_final.js
+node whatsapp_bot/prepare_whatsapp_runtime.js
 node --check whatsapp_bot/index.js
 
 log "Starting Django web server..."
