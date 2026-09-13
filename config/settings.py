@@ -93,6 +93,37 @@ MIDDLEWARE = [
 
 
 # ============================================================
+# ADMIN / SESSION
+# ============================================================
+# Keep the Django admin login session alive across Category/Product
+# add/edit pages. The session is still ended when the user explicitly logs
+# out, and it is stored in the database used by the Django service.
+SESSION_ENGINE = "django.contrib.sessions.backends.db"
+SESSION_COOKIE_AGE = 60 * 60 * 24 * 14  # 14 days
+SESSION_EXPIRE_AT_BROWSER_CLOSE = False
+SESSION_SAVE_EVERY_REQUEST = True
+SESSION_COOKIE_HTTPONLY = True
+
+# Render terminates HTTPS at its proxy. Tell Django which original protocol
+# the client used so secure cookies and CSRF handling work correctly.
+if not DEBUG:
+    SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
+    SESSION_COOKIE_SECURE = True
+    CSRF_COOKIE_SECURE = True
+
+
+# ============================================================
+# CSRF / RENDER ORIGIN
+# ============================================================
+
+CSRF_TRUSTED_ORIGINS = []
+if RENDER_EXTERNAL_HOSTNAME:
+    CSRF_TRUSTED_ORIGINS.append(
+        f"https://{RENDER_EXTERNAL_HOSTNAME}"
+    )
+
+
+# ============================================================
 # URL
 # ============================================================
 
