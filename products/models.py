@@ -8,6 +8,12 @@ class Category(models.Model):
     name = models.CharField(max_length=100, unique=True)
     description = models.TextField(blank=True)
     image = models.ImageField(upload_to="categories/", blank=True, null=True)
+    emoji = models.CharField(
+        max_length=8,
+        blank=True,
+        default="",
+        help_text="Optional emoji for Telegram category buttons, e.g. 🍰 or 🥟."
+    )
     active = models.BooleanField(default=True)
     created_at = models.DateTimeField(auto_now_add=True)
 
@@ -28,22 +34,14 @@ class Product(models.Model):
         ("kg", "Kilograms"),
     ]
 
-    category = models.ForeignKey(
-        Category,
-        on_delete=models.CASCADE,
-        related_name="products"
-    )
+    category = models.ForeignKey(Category, on_delete=models.CASCADE, related_name="products")
     name = models.CharField(max_length=200)
     description = models.TextField(blank=True)
     price = models.DecimalField(max_digits=10, decimal_places=2)
     image = models.ImageField(upload_to="products/", blank=True, null=True)
     available = models.BooleanField(default=True)
-
-    # For piece/pack products, stock is the number of sellable pieces/packs.
     stock = models.PositiveIntegerField(default=0)
 
-    # Explicit selling unit: pieces/packs, grams, or kilograms.
-    # This is now the source of truth for how the customer buys the product.
     selling_unit = models.CharField(
         max_length=10,
         choices=SELLING_UNIT_CHOICES,
@@ -51,25 +49,18 @@ class Product(models.Model):
         help_text="Choose Pieces/Packs for countable products; Grams or Kilograms for weight products."
     )
 
-    # Kept for backward compatibility with the existing cart/order/bot code.
     is_weight_based = models.BooleanField(
         default=False,
         help_text="Compatibility flag; automatically synchronized from selling_unit."
     )
-
-    # Weight products use weight_grams as the base quantity for the listed price.
-    # Example: selling_unit=kg, weight_grams=1000, price=400 means ₹400/kg.
     weight_grams = models.PositiveIntegerField(
         default=1000,
         help_text="Base weight in grams for the listed price."
     )
-
-    # Weight-product inventory is stored in grams.
     stock_grams = models.PositiveIntegerField(
         default=0,
         help_text="Available weight stock in grams for Grams/Kilograms products."
     )
-
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -103,8 +94,6 @@ class Product(models.Model):
         return f"{self.stock} pcs"
 
     def save(self, *args, **kwargs):
-        # Keep the legacy boolean synchronized so existing Telegram/cart/order
-        # logic continues to work without treating every product as weight-based.
         self.is_weight_based = self.selling_unit in {"g", "kg"}
         if self.selling_unit == "kg":
             self.weight_grams = 1000
@@ -119,26 +108,15 @@ class Product(models.Model):
 
 class Favorite(models.Model):
 
-    customer = models.ForeignKey(
-        Customer,
-        on_delete=models.CASCADE,
-        related_name="favorites"
-    )
-    product = models.ForeignKey(
-        Product,
-        on_delete=models.CASCADE,
-        related_name="favorites"
-    )
+    customer = models.ForeignKey(Customer, on_delete=models.CASCADE, related_name="favorites")
+    product = models.ForeignKey(Product, on_delete=models.CASCADE, related_name="favorites")
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
         verbose_name = "Favorite"
         verbose_name_plural = "Favorites"
         constraints = [
-            models.UniqueConstraint(
-                fields=["customer", "product"],
-                name="unique_customer_product_favorite",
-            )
+            models.UniqueConstraint(fields=["customer", "product"], name="unique_customer_product_favorite")
         ]
         ordering = ["-created_at"]
 
