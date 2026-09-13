@@ -1,4 +1,5 @@
-const BASE_URL=(process.env.DJANGO_API_URL||"http://127.0.0.1:8000/whatsapp/api").replace(/\/$/,"");
+const renderPort=process.env.PORT||"8000";
+const BASE_URL=(process.env.DJANGO_API_URL||`http://127.0.0.1:${renderPort}/whatsapp/api`).replace(/\/$/,"");
 const SECRET=process.env.WHATSAPP_BOT_SECRET||"";
 async function request(path,options={}){const response=await fetch(`${BASE_URL}/${path.replace(/^\//,"")}`,{...options,headers:{"Content-Type":"application/json","X-WhatsApp-Bot-Secret":SECRET,...(options.headers||{})}});const type=response.headers.get("content-type")||"";if(!type.includes("application/json"))throw new Error(`Django API returned ${response.status}`);const data=await response.json();if(!response.ok||data.ok===false)throw new Error(data.error||"Django API request failed.");return data;}
 const post=(path,body)=>request(path,{method:"POST",body:JSON.stringify(body)});
