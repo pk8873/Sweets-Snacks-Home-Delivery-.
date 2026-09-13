@@ -35,3 +35,31 @@ services:
         sync: false
       - key: DJANGO_ADMIN_PASSWORD
         sync: false
+      - key: WHATSAPP_BOT_SECRET
+        sync: false
+      - key: WHATSAPP_BOT_URL
+        value: "https://sweets-snacks-whatsapp-bot.onrender.com"
+      - key: PAYMENT_KEY_ID
+        sync: false
+      - key: PAYMENT_KEY_SECRET
+        sync: false
+
+  - type: web
+    name: sweets-snacks-whatsapp-bot
+    env: node
+    plan: free
+    rootDir: whatsapp_bot
+
+    buildCommand: npm install
+    startCommand: npm start
+    healthCheckPath: /health
+
+    envVars:
+      - key: NODE_ENV
+        value: "production"
+      - key: DJANGO_API_URL
+        value: "https://sweets-snacks-home-delivery.onrender.com/whatsapp/api"
+      - key: WHATSAPP_BOT_SECRET
+        sync: false
+      - key: WHATSAPP_AUTH_DIR
+        value: "./auth_info"
