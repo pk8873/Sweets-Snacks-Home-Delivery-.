@@ -1,0 +1,13 @@
+name: Keep Render Free Service Awake
+
+on:
+  schedule:
+    - cron: "*/10 * * * *"
+  workflow_dispatch:
+
+jobs:
+  ping:
+    runs-on: ubuntu-slim
+    steps:
+      - name: Ping Render service
+        run: curl --fail --silent --show-error --max-time 30 https://sweets-snacks-home-delivery.onrender.com/health/ || true
