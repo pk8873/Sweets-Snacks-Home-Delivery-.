@@ -7,8 +7,9 @@ python manage.py check
 python create_admin.py
 python set_telegram_webhook.py
 
-# Apply the WhatsApp phone-number pairing fix before starting Baileys.
+# Apply the WhatsApp pairing fix and button/function compatibility patch before starting Baileys.
 node whatsapp_bot/prepare_pairing.js
+node whatsapp_bot/prepare_buttons.js
 
 gunicorn config.asgi:application -k uvicorn.workers.UvicornWorker --bind 0.0.0.0:$PORT &
 WEB_PID=$!
