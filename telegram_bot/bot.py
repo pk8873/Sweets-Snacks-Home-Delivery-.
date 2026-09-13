@@ -331,14 +331,16 @@ def get_categories():
 
 @sync_to_async
 def get_products(category_id):
-    return [
-        p
-        for p in Product.objects.filter(
+    # "available" in Django admin means the product is published.
+    # Stock is checked later when the customer selects/adds the product.
+    # This keeps a category visible even when its product is temporarily
+    # out of stock, so the customer can see its current stock status.
+    return list(
+        Product.objects.filter(
             category_id=category_id,
             available=True,
         ).select_related("category").order_by("name")
-        if available(p)
-    ]
+    )
 
 
 @sync_to_async
