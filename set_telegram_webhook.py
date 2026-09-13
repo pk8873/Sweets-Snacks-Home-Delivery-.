@@ -4,7 +4,7 @@ import os
 from telegram import Bot
 
 
-SERVICE_URL = "https://sweets-snacks-home-delivery-3.onrender.com"
+SERVICE_URL = "https://sweets-snacks-home-delivery.onrender.com"
 
 
 async def main():
@@ -14,8 +14,6 @@ async def main():
     if not token:
         raise RuntimeError("TELEGRAM_BOT_TOKEN is not configured")
 
-    # Render provides RENDER_EXTERNAL_URL automatically. Keep the known
-    # production URL as a safe fallback so webhook setup cannot silently fail.
     base_url = (
         os.getenv("RENDER_EXTERNAL_URL", "").strip().rstrip("/")
         or SERVICE_URL
