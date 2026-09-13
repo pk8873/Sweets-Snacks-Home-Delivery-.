@@ -59,6 +59,9 @@ INSTALLED_APPS = [
     "django.contrib.messages",
     "django.contrib.staticfiles",
 
+    "cloudinary_storage",
+    "cloudinary",
+
     "products",
     "customers",
     "cart",
@@ -191,7 +194,7 @@ USE_TZ = True
 
 
 # ============================================================
-# STATIC
+# STATIC + MEDIA STORAGE
 # ============================================================
 
 STATIC_URL = "/static/"
@@ -201,9 +204,18 @@ STATICFILES_DIRS = [
     BASE_DIR / "static",
 ]
 
+# Render Free has an ephemeral filesystem. Product/category images therefore
+# use Cloudinary when CLOUDINARY_URL is configured. Local development keeps
+# using the normal local filesystem when Cloudinary credentials are absent.
+USE_CLOUDINARY = bool(os.getenv("CLOUDINARY_URL", "").strip())
+
 STORAGES = {
     "default": {
-        "BACKEND": "django.core.files.storage.FileSystemStorage",
+        "BACKEND": (
+            "cloudinary_storage.storage.MediaCloudinaryStorage"
+            if USE_CLOUDINARY
+            else "django.core.files.storage.FileSystemStorage"
+        ),
     },
     "staticfiles": {
         "BACKEND": (
@@ -213,14 +225,8 @@ STORAGES = {
     },
 }
 
-
-# ============================================================
-# MEDIA
-# ============================================================
-# On Render, MEDIA_ROOT is placed on the persistent disk mounted
-# at /var/data. Locally it continues to use ./media.
 MEDIA_URL = "/media/"
-MEDIA_ROOT = Path(os.getenv("MEDIA_ROOT", str(BASE_DIR / "media")))
+MEDIA_ROOT = BASE_DIR / "media"
 
 
 # ============================================================
