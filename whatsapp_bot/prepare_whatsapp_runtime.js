@@ -11,8 +11,6 @@ function replaceRequired(pattern, replacement, name) {
   source = next;
 }
 
-// Use WhatsApp Native Flow quick replies. This is the supported interactive
-// message shape for Baileys forks that expose nativeFlowMessage/interactiveButtons.
 replaceRequired(
   /async function buttons\(sock, jid, text, items\) \{[\s\S]*?\n\}\nasync function list/,
   `async function buttons(sock, jid, text, items) {
@@ -33,7 +31,7 @@ replaceRequired(
   } catch (error) {
     logger.error({ error: error?.message || error }, "Native Flow button send failed");
     await sock.sendMessage(jid, {
-      text: text + "\\n\\n" + clean.map((x, i) => `${i + 1}. ${x.text}`).join("\\n"),
+      text: text + "\\n\\n" + clean.map((x, i) => \`${i + 1}. \${x.text}\`).join("\\n"),
     });
   }
 }
@@ -65,7 +63,7 @@ replaceRequired(
   } catch (error) {
     logger.error({ error: error?.message || error }, "Native Flow list send failed");
     await sock.sendMessage(jid, {
-      text: text + "\\n\\n" + clean.map((x, i) => `${i + 1}. ${x.title}`).join("\\n"),
+      text: text + "\\n\\n" + clean.map((x, i) => \`${i + 1}. \${x.title}\`).join("\\n"),
     });
   }
 }
@@ -73,7 +71,6 @@ async function home`,
   "list()"
 );
 
-// Normalize all known WhatsApp reply shapes into the business action id.
 replaceRequired(
   /const actionOf = \(m\) => \{[\s\S]*?\n\};\nconst incomingLocation/,
   `const actionOf = (m) => {
@@ -84,10 +81,7 @@ replaceRequired(
       try { return findId(JSON.parse(value)); } catch { return value.trim(); }
     }
     if (typeof value !== "object") return "";
-    for (const key of [
-      "id", "button_id", "row_id", "selected_id",
-      "selectedButtonId", "selectedRowId", "selectedId",
-    ]) {
+    for (const key of ["id", "button_id", "row_id", "selected_id", "selectedButtonId", "selectedRowId", "selectedId"]) {
       if (typeof value[key] === "string" && value[key].trim()) return value[key].trim();
     }
     for (const child of Object.values(value)) {
@@ -96,7 +90,6 @@ replaceRequired(
     }
     return "";
   };
-
   const candidates = [
     x.buttonsResponseMessage?.selectedButtonId,
     x.listResponseMessage?.singleSelectReply?.selectedRowId,
@@ -105,20 +98,16 @@ replaceRequired(
     x.interactiveResponseMessage?.nativeFlowResponseMessage?.paramsJson,
     x.interactiveResponseMessage?.nativeFlowResponseMessage?.buttonParamsJson,
   ];
-
   for (const candidate of candidates) {
     const id = findId(candidate);
     if (id) return id;
   }
-
-  // Some WhatsApp clients/forks expose only the visible reply text.
   const visible = String(
     x.buttonsResponseMessage?.selectedDisplayText ||
     x.listResponseMessage?.title ||
     x.templateButtonReplyMessage?.selectedDisplayText ||
     x.hydratedTemplateButtonReplyMessage?.selectedDisplayText ||
-    x.interactiveResponseMessage?.body?.text ||
-    ""
+    x.interactiveResponseMessage?.body?.text || ""
   ).trim().toLowerCase();
   const staticLabels = {
     "🛍 shop": "shop",
@@ -143,7 +132,6 @@ const incomingLocation`,
   "actionOf()"
 );
 
-// Make incoming interactive traffic visible in Render logs BEFORE handle().
 replaceRequired(
   /async function handle\(sock, m\) \{\n  const jid = m\?\.key\?\.remoteJid;/,
   `async function handle(sock, m) {
@@ -160,7 +148,6 @@ replaceRequired(
   if (rawMessage?.interactiveResponseMessage) {
     logger.info({ interactive_response: rawMessage.interactiveResponseMessage }, "WhatsApp raw interactive response");
   }
-
   const jid = m?.key?.remoteJid;`,
   "handle() incoming logging"
 );
@@ -172,8 +159,6 @@ replaceRequired(
   "parsed action logging"
 );
 
-// Add an explicit event-level log. This distinguishes "WhatsApp sent nothing"
-// from "WhatsApp sent a response but our parser missed it".
 replaceRequired(
   /sock\.ev\.on\("messages\.upsert", async \(\{ messages \}\) => \{ for \(const m of messages\) await handle\(sock, m\); \}\);/,
   `sock.ev.on("messages.upsert", async ({ messages, type }) => {
