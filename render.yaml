@@ -2,7 +2,12 @@ services:
   - type: web
     name: sweets-snacks-home-delivery
     env: python
-    plan: free
+    plan: 0.5c-512mb
+
+    disk:
+      name: django-media
+      mountPath: /var/data
+      sizeGB: 1
 
     buildCommand: >-
       pip install -r requirements.txt &&
@@ -35,6 +40,8 @@ services:
         sync: false
       - key: DJANGO_ADMIN_PASSWORD
         sync: false
+      - key: MEDIA_ROOT
+        value: "/var/data/media"
       - key: WHATSAPP_BOT_SECRET
         sync: false
       - key: WHATSAPP_BOT_URL
@@ -47,8 +54,13 @@ services:
   - type: web
     name: sweets-snacks-whatsapp-bot
     env: node
-    plan: free
+    plan: 0.5c-512mb
     rootDir: whatsapp_bot
+
+    disk:
+      name: whatsapp-auth
+      mountPath: /var/data
+      sizeGB: 1
 
     buildCommand: npm install
     startCommand: npm start
@@ -62,4 +74,4 @@ services:
       - key: WHATSAPP_BOT_SECRET
         sync: false
       - key: WHATSAPP_AUTH_DIR
-        value: "./auth_info"
+        value: "/var/data/auth_info"
