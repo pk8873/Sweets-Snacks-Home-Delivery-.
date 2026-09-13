@@ -2,10 +2,10 @@ import fs from "node:fs";
 
 const file = new URL("./index.js", import.meta.url);
 let source = fs.readFileSync(file, "utf8");
-const marker = "WHATSAPP_BUTTON_FLOW_PATCH_V9";
+const marker = "WHATSAPP_BUTTON_FLOW_PATCH_V10";
 
 if (source.includes(marker)) {
-  console.log("WhatsApp button/function compatibility patch V9 already applied.");
+  console.log("WhatsApp button/function compatibility patch V10 already applied.");
   process.exit(0);
 }
 
@@ -38,7 +38,7 @@ async function home`,
 
 replace(
   /async function productActions\(sock, jid, p, base\) \{[\s\S]*?\nasync function addProduct/,
-  `async function productActions(sock,jid,p){const s=state(jid),qty=Math.max(Number(s.qty||1),1);let price=Number(p.price||0),weightLine="";if(p.is_weight_based){const grams=Number(s.weight||p.weight_options?.[0]||250),baseWeight=Math.max(Number(p.weight_grams||1000),1);price=Number((Number(p.price||0)*grams/baseWeight).toFixed(2));weightLine=\`\\n⚖️ Weight: *\${labelWeight(grams)}*\`}const total=price*qty;const base=\`🍬 *\${p.name}*\\n\\n\${p.description||"Freshly prepared and carefully packed."}\\n\\n💰 Price: *\${money(price)}*\${weightLine}\\n📦 \${p.stock_display}\`;s.step="product";await sock.sendMessage(jid,{text:\`${base}\\n\\n🔢 Quantity: *\${qty}*\\n🧾 Total: *\${money(total)}*\`});if(p.is_weight_based)await list(sock,jid,"⚖️ Weight चुनें:",(p.weight_options||[250,500,750,1000]).map(g=>({id:\`weight_\${p.id}_\${g}\`,title:\`${Number(s.weight)===Number(g)?"✅ ":""}\${labelWeight(g)}\` })),"Choose Weight");await buttons(sock,jid,"Quantity",[{id:\`qtydec_\${p.id}\`,text:"➖"},{id:\`qty_\${p.id}\`,text:\`Qty \${qty}\`},{id:\`qtyinc_\${p.id}\`,text:"➕"}]);await buttons(sock,jid,"Order",[{id:\`addcart_\${p.id}\`,text:"🛒 Add to Cart"},{id:\`buynow_\${p.id}\`,text:"⚡ Buy Now"}]);return buttons(sock,jid,"Product",[{id:\`favorite_\${p.id}\`,text:s.favorite?"💔 Remove Favorite":"❤️ Favorite"},{id:"cart",text:"🛒 Cart"},{id:\`category_\${p.category_id}\`,text:"⬅️ Back"}])}
+  `async function productActions(sock,jid,p){const s=state(jid),qty=Math.max(Number(s.qty||1),1);let price=Number(p.price||0),weightLine="";if(p.is_weight_based){const grams=Number(s.weight||p.weight_options?.[0]||250),baseWeight=Math.max(Number(p.weight_grams||1000),1);price=Number((Number(p.price||0)*grams/baseWeight).toFixed(2));weightLine=\`\\n⚖️ Weight: *\${labelWeight(grams)}*\`}const total=price*qty;const base=\`🍬 *\${p.name}*\\n\\n\${p.description||"Freshly prepared and carefully packed."}\\n\\n💰 Price: *\${money(price)}*\${weightLine}\\n📦 \${p.stock_display}\`;s.step="product";await sock.sendMessage(jid,{text:\${base}+"\\n\\n🔢 Quantity: *"+qty+"*\\n🧾 Total: *"+money(total)+"*"});if(p.is_weight_based)await list(sock,jid,"⚖️ Weight चुनें:",(p.weight_options||[250,500,750,1000]).map(g=>({id:\`weight_\${p.id}_\${g}\`,title:\`${Number(s.weight)===Number(g)?"✅ ":""}\${labelWeight(g)}\` })),"Choose Weight");await buttons(sock,jid,"Quantity",[{id:\`qtydec_\${p.id}\`,text:"➖"},{id:\`qty_\${p.id}\`,text:"Qty "+qty},{id:\`qtyinc_\${p.id}\`,text:"➕"}]);await buttons(sock,jid,"Order",[{id:\`addcart_\${p.id}\`,text:"🛒 Add to Cart"},{id:\`buynow_\${p.id}\`,text:"⚡ Buy Now"}]);return buttons(sock,jid,"Product",[{id:\`favorite_\${p.id}\`,text:s.favorite?"💔 Remove Favorite":"❤️ Favorite"},{id:"cart",text:"🛒 Cart"},{id:\`category_\${p.category_id}\`,text:"⬅️ Back"}])}
 async function addProduct`,
   "product actions",
 );
@@ -74,4 +74,4 @@ replace(
 
 source = `// ${marker}\n${source}`;
 fs.writeFileSync(file, source);
-console.log("WhatsApp button/function compatibility patch V9 applied.");
+console.log("WhatsApp button/function compatibility patch V10 applied.");
