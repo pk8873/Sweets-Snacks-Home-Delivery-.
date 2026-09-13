@@ -11,8 +11,37 @@ const AUTH_DIR = process.env.WHATSAPP_AUTH_DIR || "./auth_info";
 const logger = P({ level: process.env.LOG_LEVEL || "info" });
 const state = new Map();
 const phone = (jid) => (jid || "").split("@")[0].replace(/\D/g, "").slice(-15);
-const textOf = (m) => (m?.conversation || m?.extendedTextMessage?.text || m?.imageMessage?.caption || "").trim();
-const session = (jid, name = "Customer") => { if (!state.has(jid)) state.set(jid, { step: "main", name }); const s = state.get(jid); if (name) s.name = name; return s; };
+
+const unwrapMessage = (message) => {
+  let current = message;
+  for (let i = 0; i < 5; i++) {
+    if (current?.ephemeralMessage?.message) current = current.ephemeralMessage.message;
+    else if (current?.viewOnceMessage?.message) current = current.viewOnceMessage.message;
+    else if (current?.viewOnceMessageV2?.message) current = current.viewOnceMessageV2.message;
+    else if (current?.documentWithCaptionMessage?.message) current = current.documentWithCaptionMessage.message;
+    else break;
+  }
+  return current || {};
+};
+
+const textOf = (m) => {
+  const message = unwrapMessage(m?.message);
+  return (
+    message.conversation ||
+    message.extendedTextMessage?.text ||
+    message.imageMessage?.caption ||
+    message.videoMessage?.caption ||
+    message.documentMessage?.caption ||
+    ""
+  ).trim();
+};
+
+const session = (jid, name = "Customer") => {
+  if (!state.has(jid)) state.set(jid, { step: "main", name });
+  const s = state.get(jid);
+  if (name) s.name = name;
+  return s;
+};
 const customer = (jid, name) => getCustomer({ wa_id: jid, phone: phone(jid), display_name: name });
 
 async function menu(sock, jid) {
@@ -86,9 +115,23 @@ async function createOrder(sock, jid, method) {
 }
 
 async function handle(sock, m) {
-  const jid = m.key.remoteJid; if (!jid || jid === "status@broadcast" || jid.endsWith("@g.us") || m.key.fromMe) return;
-  const text = textOf(m); if (!text) return; const name = m.pushName || "Customer"; const s = session(jid, name); const lower = text.toLowerCase(); await customer(jid, name);
+  const jid = m?.key?.remoteJid;
+  if (!jid || jid === "status@broadcast" || jid.endsWith("@g.us") || m.key.fromMe) return;
+
+  const text = textOf(m);
+  if (!text) {
+    logger.debug({ jid, messageType: Object.keys(m?.message || {}) }, "WhatsApp message had no text");
+    return;
+  }
+
+  const name = m.pushName || "Customer";
+  const s = session(jid, name);
+  const lower = text.toLowerCase();
+
   try {
+    logger.info({ jid, text }, "WhatsApp incoming message");
+    await customer(jid, name);
+
     if (["hi", "hello", "start", "/start", "menu", "home"].includes(lower)) return menu(sock, jid);
     if (["shop", "1", "categories"].includes(lower)) return categories(sock, jid);
     if (lower === "cart" || lower === "2") return cart(sock, jid);
@@ -109,7 +152,10 @@ async function handle(sock, m) {
     }
     if (s.step === "payment") { if (text === "1" || lower === "cod") return createOrder(sock, jid, "cod"); if (text === "2" || lower === "online") return createOrder(sock, jid, "online"); }
     await sock.sendMessage(jid, { text: "मैं समझ नहीं पाया। `menu` भेजें।" });
-  } catch (error) { logger.error({ error, jid }, "WhatsApp handler failed"); await sock.sendMessage(jid, { text: `⚠️ Request process नहीं हो सकी।\n\n${error.message || "Please try again."}` }); }
+  } catch (error) {
+    logger.error({ error, jid, text }, "WhatsApp handler failed");
+    try { await sock.sendMessage(jid, { text: `⚠️ Request process नहीं हो सकी।\n\n${error.message || "Please try again."}` }); } catch (sendError) { logger.error({ sendError, jid }, "WhatsApp error reply failed"); }
+  }
 }
 
 async function connect() {
@@ -121,7 +167,10 @@ async function connect() {
     if (connection === "open") console.log("✅ WhatsApp bot connected.");
     if (connection === "close") { const code = new Boom(lastDisconnect?.error)?.output?.statusCode; if (code !== DisconnectReason.loggedOut) setTimeout(connect, 3000); else console.log("❌ Logged out. Delete auth_info and pair again."); }
   });
-  sock.ev.on("messages.upsert", async ({ messages }) => { for (const m of messages) await handle(sock, m); });
+  sock.ev.on("messages.upsert", async ({ messages, type }) => {
+    logger.info({ type, count: messages.length }, "WhatsApp messages.upsert");
+    for (const m of messages) await handle(sock, m);
+  });
 }
 
 http.createServer((req, res) => { if (req.url === "/" || req.url === "/health") { res.writeHead(200, { "Content-Type": "application/json" }); return res.end(JSON.stringify({ ok: true, service: "whatsapp-bot" })); } res.writeHead(404); res.end("Not found"); }).listen(PORT, () => console.log(`WhatsApp health server listening on ${PORT}`));
