@@ -2,10 +2,10 @@ import fs from "node:fs";
 
 const file = new URL("./index.js", import.meta.url);
 let source = fs.readFileSync(file, "utf8");
-const marker = "WHATSAPP_BUTTON_FLOW_PATCH_V8";
+const marker = "WHATSAPP_BUTTON_FLOW_PATCH_V9";
 
 if (source.includes(marker)) {
-  console.log("WhatsApp button/function compatibility patch V8 already applied.");
+  console.log("WhatsApp button/function compatibility patch V9 already applied.");
   process.exit(0);
 }
 
@@ -24,14 +24,14 @@ const incomingLocation`,
 
 replace(
   /async function buttons\(sock, jid, text, items\) \{[\s\S]*?\n\}\nasync function list/,
-  `async function buttons(sock,jid,text,items){const clean=items.filter(Boolean).slice(0,3);if(!clean.length)return sock.sendMessage(jid,{text});try{return await sock.sendMessage(jid,{text,footer:"Sweet & Snacks",buttons:clean.map(x=>({buttonId:x.id,buttonText:{displayText:String(x.text).slice(0,20)},type:1})),headerType:1,viewOnce:true})}catch{try{return await sock.sendMessage(jid,{text,footer:"Sweet & Snacks",interactiveButtons:clean.map(x=>({name:"quick_reply",buttonParamsJson:JSON.stringify({display_text:String(x.text).slice(0,20),id:x.id})}))})}catch{return sock.sendMessage(jid,{text:text+"\\n\\n"+clean.map((x,i)=>\`${i+1}. \${x.text}\`).join("\\n")})}}}
+  `async function buttons(sock,jid,text,items){const clean=items.filter(Boolean).slice(0,3);if(!clean.length)return sock.sendMessage(jid,{text});try{return await sock.sendMessage(jid,{text,footer:"Sweet & Snacks",buttons:clean.map(x=>({buttonId:x.id,buttonText:{displayText:String(x.text).slice(0,20)},type:1})),headerType:1,viewOnce:true})}catch{try{return await sock.sendMessage(jid,{text,footer:"Sweet & Snacks",interactiveButtons:clean.map(x=>({name:"quick_reply",buttonParamsJson:JSON.stringify({display_text:String(x.text).slice(0,20),id:x.id})}))})}catch{return sock.sendMessage(jid,{text:text+"\\n\\n"+clean.map((x,i)=>{return (i+1)+". "+x.text}).join("\\n")})}}}
 async function list`,
   "buttons",
 );
 
 replace(
   /async function list\(sock, jid, text, rows, title = "Choose"\) \{[\s\S]*?\n\}\nasync function home/,
-  `async function list(sock,jid,text,rows,title="Choose"){const clean=rows.filter(Boolean).slice(0,10);if(!clean.length)return sock.sendMessage(jid,{text});try{return await sock.sendMessage(jid,{title:"🍬 Sweet & Snacks",text,footer:"Sweet & Snacks",buttonText:title,sections:[{title:"Options",rows:clean.map(x=>({rowId:x.id,title:String(x.title).slice(0,24),description:String(x.description||"").slice(0,72)}))}],viewOnce:true})}catch{try{return await sock.sendMessage(jid,{text,footer:"Sweet & Snacks",interactiveButtons:[{name:"single_select",buttonParamsJson:JSON.stringify({title,sections:[{title:"Options",rows:clean.map(x=>({title:String(x.title).slice(0,24),description:String(x.description||"").slice(0,72),id:x.id}))}]})}]})}catch{return sock.sendMessage(jid,{text:text+"\\n\\n"+clean.map((x,i)=>\`${i+1}. \${x.title}\`).join("\\n")})}}}
+  `async function list(sock,jid,text,rows,title="Choose"){const clean=rows.filter(Boolean).slice(0,10);if(!clean.length)return sock.sendMessage(jid,{text});try{return await sock.sendMessage(jid,{title:"🍬 Sweet & Snacks",text,footer:"Sweet & Snacks",buttonText:title,sections:[{title:"Options",rows:clean.map(x=>({rowId:x.id,title:String(x.title).slice(0,24),description:String(x.description||"").slice(0,72)}))}],viewOnce:true})}catch{try{return await sock.sendMessage(jid,{text,footer:"Sweet & Snacks",interactiveButtons:[{name:"single_select",buttonParamsJson:JSON.stringify({title,sections:[{title:"Options",rows:clean.map(x=>({title:String(x.title).slice(0,24),description:String(x.description||"").slice(0,72),id:x.id}))}]})}]})}catch{return sock.sendMessage(jid,{text:text+"\\n\\n"+clean.map((x,i)=>{return (i+1)+". "+x.title}).join("\\n")})}}}
 async function home`,
   "list",
 );
@@ -74,4 +74,4 @@ replace(
 
 source = `// ${marker}\n${source}`;
 fs.writeFileSync(file, source);
-console.log("WhatsApp button/function compatibility patch V8 applied.");
+console.log("WhatsApp button/function compatibility patch V9 applied.");
