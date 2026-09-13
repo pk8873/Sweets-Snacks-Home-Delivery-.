@@ -1,10 +1,12 @@
 from django.contrib import admin
 
+from .forms import CategoryAdminForm, ProductAdminForm
 from .models import Category, Product, Favorite
 
 
 @admin.register(Category)
 class CategoryAdmin(admin.ModelAdmin):
+    form = CategoryAdminForm
     list_display = ("name", "emoji", "active", "created_at")
     list_filter = ("active", "created_at")
     search_fields = ("name", "description")
@@ -26,6 +28,7 @@ class CategoryAdmin(admin.ModelAdmin):
 
 @admin.register(Product)
 class ProductAdmin(admin.ModelAdmin):
+    form = ProductAdminForm
     list_display = (
         "name", "category", "price", "selling_unit", "price_quantity_label",
         "stock_display", "available", "created_at",
@@ -33,7 +36,9 @@ class ProductAdmin(admin.ModelAdmin):
     list_filter = ("category", "selling_unit", "available", "created_at")
     search_fields = ("name", "description", "category__name")
     list_editable = ("price", "selling_unit", "available")
-    readonly_fields = ("created_at", "updated_at", "unit_label", "price_quantity_label", "stock_display")
+    readonly_fields = (
+        "created_at", "updated_at", "unit_label", "price_quantity_label", "stock_display"
+    )
     fieldsets = (
         ("Product Information", {"fields": ("name", "category", "description", "image")}),
         (
