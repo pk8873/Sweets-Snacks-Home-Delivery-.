@@ -17,3 +17,14 @@ export const checkout=p=>post("checkout/",p);
 export const getOrders=p=>post("orders/",p);
 export const getOrder=p=>post("order/",p);
 export const reorder=p=>post("reorder/",p);
+
+// Baileys cannot attach our auth header when it fetches an image URL itself.
+// Download the protected image in Node with the secret, then pass the bytes to Baileys.
+export const downloadProductImage=async(url)=>{
+  if(!url)return null;
+  const response=await fetch(url,{headers:{"X-WhatsApp-Bot-Secret":SECRET}});
+  if(!response.ok)throw new Error(`Product image request failed: ${response.status}`);
+  const type=response.headers.get("content-type")||"image/jpeg";
+  if(!type.startsWith("image/"))throw new Error("Product image response is not an image.");
+  return Buffer.from(await response.arrayBuffer());
+};
