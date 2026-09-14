@@ -78,7 +78,7 @@ node whatsapp_bot/prepare_whatsapp_runtime_v35.js || {
 # V36 fixes the handler temporal-dead-zone bug introduced by the V33 state
 # relocation: `text` must be initialized before `lower = text.toLowerCase()`.
 node whatsapp_bot/prepare_whatsapp_runtime_v36.js || {
-  log "ERROR: WhatsApp runtime V36 preparation failed."
+  log "ERROR: WhatsApp source syntax check failed."
   exit 1
 }
 # V37 fixes the current Render/WhatsApp 401 device_removed pattern by removing
@@ -136,6 +136,13 @@ node whatsapp_bot/prepare_whatsapp_runtime_v45.js || {
 # and prevents the reconnect loop from hammering the pairing endpoint for 30 minutes.
 node whatsapp_bot/prepare_whatsapp_runtime_v46.js || {
   log "ERROR: WhatsApp runtime V46 preparation failed."
+  exit 1
+}
+# V47 keeps the V46 pairing-code flow intact but prints the actual QR whenever
+# WhatsApp provides one. This gives the account a safe QR fallback if the
+# phone-number pairing endpoint returns 429 rate-overlimit.
+node whatsapp_bot/prepare_whatsapp_runtime_v47.js || {
+  log "ERROR: WhatsApp runtime V47 preparation failed."
   exit 1
 }
 node --check whatsapp_bot/index.js || {
