@@ -11,40 +11,45 @@ if (source.includes(marker)) {
   process.exit(0);
 }
 
+// Do not depend on an exact `}\n\nasync function connect()` boundary.
+// Previous V33 failed on Render because earlier runtime patches can change
+// whitespace/placement around the handler. Instead, isolate the handler using
+// stable function names and then move/validate the session declaration.
 const handleStart = source.indexOf("async function handle(sock, m)");
 if (handleStart < 0) throw new Error("V33 could not locate WhatsApp message handler.");
 
-const handleEnd = source.indexOf("\n}\n\nasync function connect()", handleStart);
-if (handleEnd < 0) throw new Error("V33 could not locate WhatsApp message handler end.");
+const connectStart = source.indexOf("async function connect()", handleStart);
+if (connectStart < 0) throw new Error("V33 could not locate WhatsApp connect function.");
 
-let handler = source.slice(handleStart, handleEnd + 2);
+let handler = source.slice(handleStart, connectStart);
 
-// V28/V32 can leave action branches before the handler's session declaration.
-// Initialize the session immediately after the JID guard, before ANY action branch.
-const stateDecl = handler.match(/\n\s*const name = m\.pushName \|\| "Customer", s = state\(jid, name\), lower = text\.toLowerCase\(\)\.trim\(\);/);
-if (!stateDecl) {
-  throw new Error("V33 could not locate the handler state declaration.");
+const declarationPattern = /\n\s*const name = m\.pushName \|\| [\"']Customer[\"'],\s*s = state\(jid, name\),\s*lower = text\.toLowerCase\(\)\.trim\(\);/;
+const declarationMatch = handler.match(declarationPattern);
+
+const normalizedDeclaration = "\n  const name = m.pushName || \"Customer\";\n  const s = state(jid, name);\n  const lower = text.toLowerCase().trim();";
+
+if (!declarationMatch) {
+  throw new Error("V33 could not locate handler state declaration.");
 }
 
-handler = handler.replace(stateDecl[0], "\n  const name = m.pushName || \"Customer\";\n  const s = state(jid, name);\n  const lower = text.toLowerCase().trim();");
+// Find the JID guard by locating the first return in the guard line.
+const jidLineStart = handler.indexOf("const jid = m?.key?.remoteJid;");
+if (jidLineStart < 0) throw new Error("V33 could not locate handler JID declaration.");
+const guardReturn = handler.indexOf("return;", jidLineStart);
+if (guardReturn < 0) throw new Error("V33 could not locate handler JID guard return.");
+const guardEnd = guardReturn + "return;".length;
 
-const jidGuard = /const jid = m\?\.key\?\.remoteJid;[\s\S]*?return;/m.exec(handler);
-if (!jidGuard) throw new Error("V33 could not locate the handler JID guard.");
+// Remove the existing declaration, then insert it immediately after the guard.
+const declarationStart = declarationMatch.index;
+const declarationEnd = declarationStart + declarationMatch[0].length;
+handler = handler.slice(0, declarationStart) + handler.slice(declarationEnd);
 
-const declaration = "\n  const name = m.pushName || \"Customer\";\n  const s = state(jid, name);\n  const lower = text.toLowerCase().trim();";
-const declIndex = handler.indexOf(declaration);
-if (declIndex < 0) throw new Error("V33 could not locate normalized state declaration.");
+const adjustedGuardEnd = guardEnd - (declarationStart < guardEnd ? declarationMatch[0].length : 0);
+handler = handler.slice(0, adjustedGuardEnd) + normalizedDeclaration + handler.slice(adjustedGuardEnd);
 
-// Remove the declaration from its old location, then place it directly after
-// the complete JID guard. This removes the TDZ path regardless of V28/V32 order.
-handler = handler.slice(0, declIndex) + handler.slice(declIndex + declaration.length);
-const guardEnd = jidGuard.index + jidGuard[0].length;
-const newDeclaration = declaration + "\n";
-handler = handler.slice(0, guardEnd) + newDeclaration + handler.slice(guardEnd);
-
-source = source.slice(0, handleStart) + handler + source.slice(handleEnd + 2);
+source = source.slice(0, handleStart) + handler + source.slice(connectStart);
 source = source.replace(/\n+$/, "") + `\n\n// ${marker}\n`;
 
 fs.writeFileSync(file, source, "utf8");
 execFileSync(process.execPath, ["--check", path], { stdio: "inherit" });
-console.log("WhatsApp runtime fix V33 applied; handler session initialized before all action branches + syntax check passed.");
+console.log("WhatsApp runtime fix V33 applied; robust handler detection + session initialization after JID guard + syntax check passed.");
