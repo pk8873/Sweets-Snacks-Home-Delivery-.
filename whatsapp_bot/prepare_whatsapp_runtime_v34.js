@@ -21,7 +21,7 @@ const replacement = String.raw`async function handle(sock, m) {
   if (!jid || jid === "status@broadcast" || jid.endsWith("@g.us") || m?.key?.fromMe) return;
 
   // IMPORTANT: keep this variable name unique. Older runtime patches created
-  // a temporal-dead-zone collision around a variable named `text`.
+  // a temporal-dead-zone collision around a variable named 'text'.
   let incomingText = "";
   let action = "";
   let location = null;
