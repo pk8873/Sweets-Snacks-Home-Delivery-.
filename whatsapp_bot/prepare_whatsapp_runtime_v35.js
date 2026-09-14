@@ -13,12 +13,15 @@ if (source.includes(marker)) {
 
 // V23's direct interactiveMessage send path is not accepted reliably by the
 // pinned Baileys build. V35 sends Native Flow through the protobuf + relay path.
-const importNeedle = 'import makeWASocket, { Browsers, DisconnectReason, fetchLatestWaWebVersion } from "@whiskeysockets/baileys";';
-const importReplacement = 'import makeWASocket, { Browsers, DisconnectReason, fetchLatestWaWebVersion, generateWAMessageFromContent, proto } from "@whiskeysockets/baileys";';
-if (!source.includes(importNeedle)) {
-  throw new Error("V35 could not locate Baileys import line.");
+// V27 may already have installed the required Native Flow imports, so accept
+// either the original import or the already-patched import instead of failing.
+const oldImport = 'import makeWASocket, { Browsers, DisconnectReason, fetchLatestWaWebVersion } from "@whiskeysockets/baileys";';
+const newImport = 'import makeWASocket, { Browsers, DisconnectReason, fetchLatestWaWebVersion, generateWAMessageFromContent, proto } from "@whiskeysockets/baileys";';
+if (source.includes(oldImport)) {
+  source = source.replace(oldImport, newImport);
+} else if (!source.includes("generateWAMessageFromContent") || !source.includes("proto")) {
+  throw new Error("V35 could not locate a compatible Baileys import line.");
 }
-source = source.replace(importNeedle, importReplacement);
 
 function replaceRequired(pattern, replacement, name) {
   const next = source.replace(pattern, replacement);
