@@ -34,6 +34,10 @@ node whatsapp_bot/prepare_whatsapp_runtime_v23.js || {
   log "ERROR: WhatsApp runtime V23 preparation failed."
   exit 1
 }
+node whatsapp_bot/prepare_whatsapp_runtime_v24.js || {
+  log "ERROR: WhatsApp runtime V24 preparation failed."
+  exit 1
+}
 node whatsapp_bot/prepare_whatsapp_runtime_v25.js || {
   log "ERROR: WhatsApp runtime V25 preparation failed."
   exit 1
