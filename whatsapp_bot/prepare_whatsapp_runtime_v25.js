@@ -71,7 +71,7 @@ const buttonsReplacement = `async function buttons(sock, jid, text, items) {
   }
 }`;
 
-const buttonsPattern = /async function buttons\\(sock, jid, text, items\\) \\{[\\s\\S]*?(?=\\nasync function list)/;
+const buttonsPattern = /async function buttons\(sock, jid, text, items\) \{[\s\S]*?(?=\nasync function list)/;
 if (!buttonsPattern.test(src)) {
   throw new Error("Unable to locate WhatsApp buttons() for V25.");
 }
@@ -141,14 +141,14 @@ const listReplacement = `async function list(sock, jid, text, rows, title = "Cho
   }
 }`;
 
-const listPattern = /async function list\\(sock, jid, text, rows, title = "Choose"\\) \\{[\\s\\S]*?(?=\\nasync function home)/;
+const listPattern = /async function list\(sock, jid, text, rows, title = "Choose"\) \{[\s\S]*?(?=\nasync function home)/;
 if (!listPattern.test(src)) {
   throw new Error("Unable to locate WhatsApp list() for V25.");
 }
 src = src.replace(listPattern, listReplacement);
 
-src = src.replace(/\\n\\/\\/ WHATSAPP_RUNTIME_FIX_V24[\\s\\S]*?\\n/, "\\n");
-src = src.replace(/\\n$/, "") + `\\n\\n// ${marker}\\n`;
+src = src.replace(/\n\/\/ WHATSAPP_RUNTIME_FIX_V24[\s\S]*?\n/, "\n");
+src = src.replace(/\n$/, "") + `\n\n// ${marker}\n`;
 
 fs.writeFileSync(path, src, "utf8");
 console.log("WhatsApp runtime fix V25 applied; low-level Native Flow relay installed over current V23 source.");
