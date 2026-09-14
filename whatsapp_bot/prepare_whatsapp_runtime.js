@@ -3,11 +3,11 @@ import { execFileSync } from "node:child_process";
 
 const file = new URL("./index.js", import.meta.url);
 let source = fs.readFileSync(file, "utf8");
-const marker = "WHATSAPP_RUNTIME_FIX_V20";
+const marker = "WHATSAPP_RUNTIME_FIX_V21";
 
 function replaceRequired(pattern, replacement, name) {
   const next = source.replace(pattern, replacement);
-  if (next === source) throw new Error(`V20 could not locate ${name}`);
+  if (next === source) throw new Error(`V21 could not locate ${name}`);
   source = next;
 }
 
@@ -169,4 +169,4 @@ replaceRequired(
 if (!source.includes(marker)) source = `// ${marker}\n${source}`;
 fs.writeFileSync(file, source);
 execFileSync(process.execPath, ["--check", file.pathname], { stdio: "inherit" });
-console.log("WhatsApp runtime fix V20 applied; Native Flow + action parsing + incoming diagnostics + syntax check passed.");
+console.log("WhatsApp runtime fix V21 applied; Native Flow + action parsing + incoming diagnostics + syntax check passed.");
