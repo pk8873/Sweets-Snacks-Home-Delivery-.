@@ -88,6 +88,13 @@ node whatsapp_bot/prepare_whatsapp_runtime_v37.js || {
   log "ERROR: WhatsApp runtime V37 preparation failed."
   exit 1
 }
+# V38 fixes the pairing race seen in Render logs: V7's timer was requesting the
+# code before the QR/auth-ready event and blocking the real QR handler. V38 also
+# uses the canonical Chrome/Mac OS browser tuple required by pairing-code flow.
+node whatsapp_bot/prepare_whatsapp_runtime_v38.js || {
+  log "ERROR: WhatsApp runtime V38 preparation failed."
+  exit 1
+}
 node --check whatsapp_bot/index.js || {
   log "ERROR: WhatsApp source syntax check failed."
   exit 1
