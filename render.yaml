@@ -3,6 +3,7 @@ services:
     name: sweets-snacks-home-delivery
     env: python
     plan: free
+    healthCheckPath: /health/
 
     buildCommand: >-
       pip install -r requirements.txt &&
