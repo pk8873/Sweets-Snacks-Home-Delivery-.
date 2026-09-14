@@ -106,16 +106,14 @@ node whatsapp_bot/prepare_whatsapp_runtime_v40.js || {
   log "ERROR: WhatsApp runtime V40 preparation failed."
   exit 1
 }
-# V41 keeps QR as the explicit safe default. V42 changes the default to AUTO:
-# if WHATSAPP_PHONE_NUMBER exists, pairing-code mode is selected automatically;
-# otherwise QR remains available. V42 makes one delayed pairing request only,
-# avoiding duplicate/429 retry loops.
+# V41 is kept as the stable connect() baseline. V43 replaces its connect()
+# function with a pairing-code-only implementation and intentionally ignores QR.
 node whatsapp_bot/prepare_whatsapp_runtime_v41.js || {
   log "ERROR: WhatsApp runtime V41 preparation failed."
   exit 1
 }
-node whatsapp_bot/prepare_whatsapp_runtime_v42.js || {
-  log "ERROR: WhatsApp runtime V42 preparation failed."
+node whatsapp_bot/prepare_whatsapp_runtime_v43.js || {
+  log "ERROR: WhatsApp runtime V43 preparation failed."
   exit 1
 }
 node --check whatsapp_bot/index.js || {
