@@ -49,6 +49,12 @@ node whatsapp_bot/prepare_whatsapp_runtime_v31.js || {
   log "ERROR: WhatsApp runtime V31 preparation failed."
   exit 1
 }
+# V32 fixes the V28/V31 handler ordering bug: the V28 branch must run after
+# the handler's state object `s` has been initialized.
+node whatsapp_bot/prepare_whatsapp_runtime_v32.js || {
+  log "ERROR: WhatsApp runtime V32 preparation failed."
+  exit 1
+}
 node --check whatsapp_bot/index.js || {
   log "ERROR: WhatsApp source syntax check failed."
   exit 1
