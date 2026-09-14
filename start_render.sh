@@ -60,6 +60,13 @@ node whatsapp_bot/prepare_whatsapp_runtime_v33.js || {
   log "ERROR: WhatsApp runtime V33 preparation failed."
   exit 1
 }
+# V34 is the final handler normalization. It replaces the accumulated patched
+# handler with one clean implementation, removes the `text` TDZ failure path,
+# and keeps all existing shop/cart/address/order/payment actions.
+node whatsapp_bot/prepare_whatsapp_runtime_v34.js || {
+  log "ERROR: WhatsApp runtime V34 preparation failed."
+  exit 1
+}
 node --check whatsapp_bot/index.js || {
   log "ERROR: WhatsApp source syntax check failed."
   exit 1
