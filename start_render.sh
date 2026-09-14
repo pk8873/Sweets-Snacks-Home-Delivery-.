@@ -123,6 +123,14 @@ node whatsapp_bot/prepare_whatsapp_runtime_v44.js || {
   log "ERROR: WhatsApp runtime V44 preparation failed."
   exit 1
 }
+# V45 is a final safety gate. It does not change business logic; it verifies
+# that the V35 protobuf + relayMessage Native Flow transport is still present
+# after all later startup patches. This prevents Render from silently deploying
+# a source state where WhatsApp buttons regress to plain text.
+node whatsapp_bot/prepare_whatsapp_runtime_v45.js || {
+  log "ERROR: WhatsApp runtime V45 validation failed."
+  exit 1
+}
 node --check whatsapp_bot/index.js || {
   log "ERROR: WhatsApp source syntax check failed."
   exit 1
