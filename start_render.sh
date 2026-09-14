@@ -106,11 +106,16 @@ node whatsapp_bot/prepare_whatsapp_runtime_v40.js || {
   log "ERROR: WhatsApp runtime V40 preparation failed."
   exit 1
 }
-# V41 makes QR the safe default registration method. WhatsApp's pairing-code
-# endpoint is rate-limited (429), so automatic code retries are disabled. Code
-# pairing remains available only when WHATSAPP_PAIRING_MODE=code is explicitly set.
+# V41 keeps QR as the explicit safe default. V42 changes the default to AUTO:
+# if WHATSAPP_PHONE_NUMBER exists, pairing-code mode is selected automatically;
+# otherwise QR remains available. V42 makes one delayed pairing request only,
+# avoiding duplicate/429 retry loops.
 node whatsapp_bot/prepare_whatsapp_runtime_v41.js || {
   log "ERROR: WhatsApp runtime V41 preparation failed."
+  exit 1
+}
+node whatsapp_bot/prepare_whatsapp_runtime_v42.js || {
+  log "ERROR: WhatsApp runtime V42 preparation failed."
   exit 1
 }
 node --check whatsapp_bot/index.js || {
