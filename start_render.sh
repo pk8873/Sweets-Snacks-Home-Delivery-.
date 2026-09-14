@@ -42,6 +42,10 @@ node whatsapp_bot/prepare_whatsapp_runtime_v28.js || {
   log "ERROR: WhatsApp runtime V28 preparation failed."
   exit 1
 }
+node whatsapp_bot/prepare_whatsapp_runtime_v29.js || {
+  log "ERROR: WhatsApp runtime V29 preparation failed."
+  exit 1
+}
 node --check whatsapp_bot/index.js || {
   log "ERROR: WhatsApp source syntax check failed."
   exit 1
