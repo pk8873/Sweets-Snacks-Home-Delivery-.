@@ -39,12 +39,13 @@ node whatsapp_bot/prepare_whatsapp_runtime_v41.js || { log "ERROR: WhatsApp runt
 node whatsapp_bot/prepare_whatsapp_runtime_v43.js || { log "ERROR: WhatsApp runtime V43 preparation failed."; exit 1; }
 node whatsapp_bot/prepare_whatsapp_runtime_v44.js || { log "ERROR: WhatsApp runtime V44 preparation failed."; exit 1; }
 node whatsapp_bot/prepare_whatsapp_runtime_v45.js || { log "ERROR: WhatsApp runtime V45 validation failed."; exit 1; }
-# V46 is the final pairing lifecycle guard: QR/registration handshake, 429 cooldown,
+# V46 is the pairing lifecycle guard: internal registration handshake, 429 cooldown,
 # and reconnect protection prevent repeated pairing requests from hammering WhatsApp.
 node whatsapp_bot/prepare_whatsapp_runtime_v46.js || { log "ERROR: WhatsApp runtime V46 preparation failed."; exit 1; }
-# V47 prints the actual QR whenever WhatsApp provides one, giving a safe QR fallback
-# when phone-number pairing is temporarily rate-limited with HTTP 429.
+# V47 is retained for source compatibility; V48 immediately removes its QR fallback output.
 node whatsapp_bot/prepare_whatsapp_runtime_v47.js || { log "ERROR: WhatsApp runtime V47 preparation failed."; exit 1; }
+# V48 enforces the user's required pairing-code-only experience: never render a QR.
+node whatsapp_bot/prepare_whatsapp_runtime_v48.js || { log "ERROR: WhatsApp runtime V48 preparation failed."; exit 1; }
 node --check whatsapp_bot/index.js || { log "ERROR: WhatsApp source syntax check failed."; exit 1; }
 
 log "Starting Django web server..."
