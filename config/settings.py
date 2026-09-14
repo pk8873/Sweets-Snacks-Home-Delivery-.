@@ -1,6 +1,6 @@
 import os
 from pathlib import Path
-from urllib.parse import urlparse
+from urllib.parse import urlparse, urlsplit, urlunsplit
 
 from dotenv import load_dotenv
 import dj_database_url
@@ -167,13 +167,42 @@ ASGI_APPLICATION = "config.asgi.application"
 DATABASE_URL = os.getenv("DATABASE_URL", "").strip()
 
 if DATABASE_URL:
+    # Supabase's session pooler uses port 5432 and has a small fixed
+    # session pool. For the Django web/API workload, use the transaction
+    # pooler automatically when the configured host is Supabase's pooler.
+    # This avoids holding a PostgreSQL session open between requests.
+    database_url = DATABASE_URL
+    try:
+        parsed = urlsplit(database_url)
+        hostname = (parsed.hostname or "").lower()
+        if hostname.endswith(".pooler.supabase.com") and parsed.port == 5432:
+            netloc = parsed.hostname
+            if parsed.username:
+                from urllib.parse import quote
+                netloc = quote(parsed.username, safe="") + "@" + netloc
+            if parsed.password:
+                from urllib.parse import quote
+                user_part = quote(parsed.username or "", safe="")
+                netloc = user_part + ":" + quote(parsed.password, safe="") + "@" + parsed.hostname
+            if parsed.port:
+                netloc += ":6543"
+            database_url = urlunsplit((parsed.scheme, netloc, parsed.path, parsed.query, parsed.fragment))
+    except ValueError:
+        database_url = DATABASE_URL
+
     DATABASES = {
         "default": dj_database_url.parse(
-            DATABASE_URL,
-            conn_max_age=600,
+            database_url,
+            conn_max_age=0,
             ssl_require=True,
         )
     }
+    DATABASES["default"].setdefault("OPTIONS", {})
+    # Transaction pooling cannot safely keep Django server-side cursors.
+    DATABASES["default"]["DISABLE_SERVER_SIDE_CURSORS"] = True
+    # Psycopg3 prepared statements are connection-specific and should not be
+    # retained when requests can move between transaction-pooler backends.
+    DATABASES["default"]["OPTIONS"]["prepare_threshold"] = None
 else:
     DATABASES = {
         "default": {
@@ -298,33 +327,3 @@ MEDIA_ROOT = BASE_DIR / "media"
 # ============================================================
 
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
-
-
-# ============================================================
-# TELEGRAM
-# ============================================================
-
-TELEGRAM_BOT_TOKEN = os.getenv(
-    "TELEGRAM_BOT_TOKEN",
-    "",
-).strip()
-
-TELEGRAM_WEBHOOK_SECRET = os.getenv(
-    "TELEGRAM_WEBHOOK_SECRET",
-    "",
-).strip()
-
-TELEGRAM_WEBHOOK_URL = os.getenv(
-    "TELEGRAM_WEBHOOK_URL",
-    "",
-).strip()
-
-
-# ============================================================
-# WHATSAPP / BAILEYS
-# ============================================================
-
-WHATSAPP_BOT_SECRET = os.getenv(
-    "WHATSAPP_BOT_SECRET",
-    "",
-).strip()
