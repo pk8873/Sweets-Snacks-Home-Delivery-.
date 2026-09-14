@@ -30,6 +30,10 @@ node whatsapp_bot/prepare_whatsapp_runtime.js || {
   log "ERROR: WhatsApp runtime preparation failed."
   exit 1
 }
+node whatsapp_bot/prepare_whatsapp_runtime_v23.js || {
+  log "ERROR: WhatsApp runtime V23 preparation failed."
+  exit 1
+}
 node --check whatsapp_bot/index.js || {
   log "ERROR: WhatsApp source syntax check failed."
   exit 1
