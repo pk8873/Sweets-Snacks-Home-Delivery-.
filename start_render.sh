@@ -75,6 +75,12 @@ node whatsapp_bot/prepare_whatsapp_runtime_v35.js || {
   log "ERROR: WhatsApp runtime V35 preparation failed."
   exit 1
 }
+# V36 fixes the handler temporal-dead-zone bug introduced by the V33 state
+# relocation: `text` must be initialized before `lower = text.toLowerCase()`.
+node whatsapp_bot/prepare_whatsapp_runtime_v36.js || {
+  log "ERROR: WhatsApp runtime V36 preparation failed."
+  exit 1
+}
 node --check whatsapp_bot/index.js || {
   log "ERROR: WhatsApp source syntax check failed."
   exit 1
