@@ -116,6 +116,13 @@ node whatsapp_bot/prepare_whatsapp_runtime_v43.js || {
   log "ERROR: WhatsApp runtime V43 preparation failed."
   exit 1
 }
+# V44 fixes the current pairing-code "device could not connect" failure by
+# using the canonical Windows/Chrome companion identity accepted by WhatsApp
+# for phone-number pairing. It leaves the existing business handler unchanged.
+node whatsapp_bot/prepare_whatsapp_runtime_v44.js || {
+  log "ERROR: WhatsApp runtime V44 preparation failed."
+  exit 1
+}
 node --check whatsapp_bot/index.js || {
   log "ERROR: WhatsApp source syntax check failed."
   exit 1
