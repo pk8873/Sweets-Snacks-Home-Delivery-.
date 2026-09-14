@@ -18,7 +18,8 @@ function replaceRequired(pattern, replacement, name) {
 
 // V29 attempted to infer the handler's state declaration from a later branch.
 // V28 intentionally keeps the single handler state declaration near the top of handle().
-// V30 therefore does not move or duplicate state; it only makes response parsing observable and robust.
+// V30 therefore does not move or duplicate state; it makes response parsing observable,
+// keeps the state safety check, and fixes misleading connection diagnostics.
 
 replaceRequired(
   /const actionOf = \(m\) => \{[\s\S]*?\nconst incomingLocation/,
@@ -137,6 +138,15 @@ if (!source.includes('event: "whatsapp.messages.upsert"')) {
   replaceRequired(listenerPattern, listenerReplacement, "messages.upsert listener");
 }
 
+// V23's logger created Boom(undefined), which reports the default 500 and makes a
+// healthy connection look like an error. Only report a status when an actual error exists.
+if (source.includes("status_code: new Boom(lastDisconnect?.error)?.output?.statusCode")) {
+  source = source.replace(
+    "status_code: new Boom(lastDisconnect?.error)?.output?.statusCode",
+    "status_code: lastDisconnect?.error ? new Boom(lastDisconnect.error).output.statusCode : null"
+  );
+}
+
 if (!source.includes("const s = state(jid, name)")) {
   throw new Error("V30 safety check failed: main handler state declaration is missing.");
 }
@@ -144,4 +154,4 @@ if (!source.includes("const s = state(jid, name)")) {
 source = `// ${marker}\n${source}`;
 fs.writeFileSync(file, source, "utf8");
 execFileSync(process.execPath, ["--check", file.pathname], { stdio: "inherit" });
-console.log("WhatsApp runtime fix V30 applied; robust action parsing + incoming diagnostics + state safety + syntax check passed.");
+console.log("WhatsApp runtime fix V30 applied; robust action parsing + incoming diagnostics + accurate connection status + state safety + syntax check passed.");
