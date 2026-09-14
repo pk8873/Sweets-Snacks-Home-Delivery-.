@@ -131,6 +131,13 @@ node whatsapp_bot/prepare_whatsapp_runtime_v45.js || {
   log "ERROR: WhatsApp runtime V45 validation failed."
   exit 1
 }
+# V46 is the final pairing lifecycle guard. It waits for the initial QR/registration
+# handshake before requesting the code, treats 429 as a real WhatsApp rate limit,
+# and prevents the reconnect loop from hammering the pairing endpoint for 30 minutes.
+node whatsapp_bot/prepare_whatsapp_runtime_v46.js || {
+  log "ERROR: WhatsApp runtime V46 preparation failed."
+  exit 1
+}
 node --check whatsapp_bot/index.js || {
   log "ERROR: WhatsApp source syntax check failed."
   exit 1
