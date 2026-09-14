@@ -42,8 +42,10 @@ node whatsapp_bot/prepare_whatsapp_runtime_v28.js || {
   log "ERROR: WhatsApp runtime V28 preparation failed."
   exit 1
 }
-node whatsapp_bot/prepare_whatsapp_runtime_v29.js || {
-  log "ERROR: WhatsApp runtime V29 preparation failed."
+# V29 was a brittle source-rewrite step. V30 replaces it with a non-duplicating,
+# marker-based parser/diagnostic patch that matches the actual V28 handler layout.
+node whatsapp_bot/prepare_whatsapp_runtime_v30.js || {
+  log "ERROR: WhatsApp runtime V30 preparation failed."
   exit 1
 }
 node --check whatsapp_bot/index.js || {
