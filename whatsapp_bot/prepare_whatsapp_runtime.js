@@ -3,11 +3,11 @@ import { execFileSync } from "node:child_process";
 
 const file = new URL("./index.js", import.meta.url);
 let source = fs.readFileSync(file, "utf8");
-const marker = "WHATSAPP_RUNTIME_FIX_V21";
+const marker = "WHATSAPP_RUNTIME_FIX_V22";
 
 function replaceRequired(pattern, replacement, name) {
   const next = source.replace(pattern, replacement);
-  if (next === source) throw new Error(`V21 could not locate ${name}`);
+  if (next === source) throw new Error(`V22 could not locate ${name}`);
   source = next;
 }
 
@@ -23,11 +23,7 @@ replaceRequired(
     }),
   }));
   try {
-    await sock.sendMessage(jid, {
-      text,
-      footer: "Sweet & Snacks",
-      interactiveButtons,
-    });
+    await sock.sendMessage(jid, { text, footer: "Sweet & Snacks", interactiveButtons });
   } catch (error) {
     logger.error({ error: error?.message || error }, "Native Flow button send failed");
     const fallback = clean.map((x, i) => String(i + 1) + ". " + String(x.text || "")).join("\\n");
@@ -157,16 +153,19 @@ replaceRequired(
   "parsed action logging"
 );
 
-replaceRequired(
-  /sock\.ev\.on\("messages\.upsert", async \(\{ messages \}\) => \{ for \(const m of messages\) await handle\(sock, m\); \}\);/,
-  `sock.ev.on("messages.upsert", async ({ messages, type }) => {
-    logger.info({ event: "whatsapp.messages.upsert", type, count: messages?.length || 0 }, "WhatsApp messages.upsert received");
-    for (const m of messages || []) await handle(sock, m);
-  });`,
-  "messages.upsert listener"
-);
+const listenerPattern = /sock\.ev\.on\("messages\.upsert",[\s\S]*?\}\);/;
+const listenerReplacement = `sock.ev.on("messages.upsert", async ({ messages, type }) => {
+  logger.info({ event: "whatsapp.messages.upsert", type, count: messages?.length || 0 }, "WhatsApp messages.upsert received");
+  for (const m of messages || []) await handle(sock, m);
+});`;
+if (listenerPattern.test(source)) {
+  source = source.replace(listenerPattern, listenerReplacement);
+  console.log("WhatsApp messages.upsert listener diagnostics installed.");
+} else {
+  console.log("WhatsApp messages.upsert listener already differs from expected shape; keeping existing listener.");
+}
 
 if (!source.includes(marker)) source = `// ${marker}\n${source}`;
 fs.writeFileSync(file, source);
 execFileSync(process.execPath, ["--check", file.pathname], { stdio: "inherit" });
-console.log("WhatsApp runtime fix V21 applied; Native Flow + action parsing + incoming diagnostics + syntax check passed.");
+console.log("WhatsApp runtime fix V22 applied; Native Flow + action parsing + incoming diagnostics + syntax check passed.");
