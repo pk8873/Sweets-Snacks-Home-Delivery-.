@@ -71,12 +71,10 @@ if (!source.includes("WHATSAPP_PAIRING_STATE_KEY")) {
   source = source.replace(poolAnchor, poolAnchor + stateHelper);
 }
 
-const pairingNumberPattern = /  const pairingNumber = String\(process\.env\.WHATSAPP_PHONE_NUMBER \|\| ""\)\.replace\(\/\\\\D\/g, ""\);/;
-const pairingNumberMatch = source.match(pairingNumberPattern);
-if (!pairingNumberMatch) {
+const pairingNumberAnchor = '  const pairingNumber = String(process.env.WHATSAPP_PHONE_NUMBER || "").replace(/\\D/g, "");';
+if (!source.includes(pairingNumberAnchor)) {
   throw new Error("V49 could not locate pairing-number initialization.");
 }
-const pairingNumberAnchor = pairingNumberMatch[0];
 
 const loadBlock = `  const persistedPairingCooldown = await loadPairingCooldown();
   if (persistedPairingCooldown > whatsappPairingRateLimitedUntil) {
