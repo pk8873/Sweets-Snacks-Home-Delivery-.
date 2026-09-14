@@ -67,6 +67,14 @@ node whatsapp_bot/prepare_whatsapp_runtime_v34.js || {
   log "ERROR: WhatsApp runtime V34 preparation failed."
   exit 1
 }
+# V35 fixes only the WhatsApp Native Flow transport. V23's direct
+# sock.sendMessage(interactiveMessage) path throws "Invalid media type" in the
+# pinned Baileys build. V35 uses the protobuf + relayMessage path while keeping
+# every existing button/action ID and business handler unchanged.
+node whatsapp_bot/prepare_whatsapp_runtime_v35.js || {
+  log "ERROR: WhatsApp runtime V35 preparation failed."
+  exit 1
+}
 node --check whatsapp_bot/index.js || {
   log "ERROR: WhatsApp source syntax check failed."
   exit 1
