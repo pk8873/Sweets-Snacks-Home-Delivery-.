@@ -18,9 +18,22 @@ else
 fi
 
 log "Preparing WhatsApp source..."
-node whatsapp_bot/prepare_pairing.js
-node whatsapp_bot/prepare_whatsapp_runtime.js
-node --check whatsapp_bot/index.js
+node whatsapp_bot/prepare_pairing.js || {
+  log "ERROR: WhatsApp pairing preparation failed."
+  exit 1
+}
+node whatsapp_bot/prepare_pairing_v7.js || {
+  log "ERROR: WhatsApp pairing V7 preparation failed."
+  exit 1
+}
+node whatsapp_bot/prepare_whatsapp_runtime.js || {
+  log "ERROR: WhatsApp runtime preparation failed."
+  exit 1
+}
+node --check whatsapp_bot/index.js || {
+  log "ERROR: WhatsApp source syntax check failed."
+  exit 1
+}
 
 log "Starting Django web server..."
 gunicorn config.asgi:application -k uvicorn.workers.UvicornWorker --bind 0.0.0.0:${PORT} &
