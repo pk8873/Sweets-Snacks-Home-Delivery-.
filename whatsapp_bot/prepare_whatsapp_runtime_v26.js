@@ -36,6 +36,17 @@ if (!src.includes(oldWeight)) {
 }
 
 src = src.replace(oldWeight, newWeight);
+
+// Keep the WhatsApp authentication pool small. The Django API and WhatsApp
+// auth state share the same Supabase project pooler, so unnecessarily large
+// client pools can contribute to the session-mode connection limit.
+const oldPool = 'const pool = WHATSAPP_DATABASE_URL ? new Pool({ connectionString: WHATSAPP_DATABASE_URL, ssl: { rejectUnauthorized: false }, max: 5 }) : null;';
+const newPool = 'const pool = WHATSAPP_DATABASE_URL ? new Pool({ connectionString: WHATSAPP_DATABASE_URL, ssl: { rejectUnauthorized: false }, max: 2, idleTimeoutMillis: 10000, connectionTimeoutMillis: 10000 }) : null;';
+if (!src.includes(oldPool)) {
+  throw new Error("Unable to locate WhatsApp PostgreSQL pool for V26.");
+}
+src = src.replace(oldPool, newPool);
+
 src = src.replace(/\n$/, "") + `\n\n// ${marker}\n`;
 fs.writeFileSync(path, src, "utf8");
-console.log("WhatsApp runtime fix V26 applied; weight selection now exits the weight step correctly.");
+console.log("WhatsApp runtime fix V26 applied; weight selection fixed and WhatsApp DB pool limited to 2 connections.");
