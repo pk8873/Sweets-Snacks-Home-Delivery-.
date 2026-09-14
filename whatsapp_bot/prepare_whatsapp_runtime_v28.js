@@ -151,7 +151,7 @@ replaceFunction("async function cart(sock, jid)", "async function addresses(sock
 
 const parsedMarker = `logger.info({ event: "whatsapp.parsed", text, action }, "WhatsApp message parsed");`;
 const branch = `
-  const s = state(jid, "Customer");
+  // V28: state is already declared by the main message handler before this branch.
   const editKey = responseEditKey(m, sock);
 
   if (action === "home" && ["address_line", "address_city", "address_pincode"].includes(s.step)) {
@@ -173,7 +173,7 @@ const branch = `
     return sock.sendMessage(jid, { text: "📮 *Step 3/3 — PIN Code*\\n\\nअब 6 digit PIN code लिखें।\\n\\nउदाहरण: 462001" });
   }
   if (!action && s.step === "address_pincode" && text) {
-    const pin = text.replace(/\\D/g, "").slice(0, 6);
+    const pin = text.replace(/\D/g, "").slice(0, 6);
     if (pin.length !== 6) return sock.sendMessage(jid, { text: "⚠️ PIN code 6 digit का होना चाहिए।\\n\\nकृपया फिर से 6 digit PIN code भेजें।" });
     try {
       await saveAddress({
