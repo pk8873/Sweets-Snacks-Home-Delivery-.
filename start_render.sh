@@ -46,6 +46,9 @@ node whatsapp_bot/prepare_whatsapp_runtime_v46.js || { log "ERROR: WhatsApp runt
 node whatsapp_bot/prepare_whatsapp_runtime_v47.js || { log "ERROR: WhatsApp runtime V47 preparation failed."; exit 1; }
 # V48 enforces the user's required pairing-code-only experience: never render a QR.
 node whatsapp_bot/prepare_whatsapp_runtime_v48.js || { log "ERROR: WhatsApp runtime V48 preparation failed."; exit 1; }
+# V49 persists WhatsApp's 429 pairing cooldown in PostgreSQL so Render restarts
+# cannot immediately hammer the pairing endpoint again.
+node whatsapp_bot/prepare_whatsapp_runtime_v49.js || { log "ERROR: WhatsApp runtime V49 preparation failed."; exit 1; }
 node --check whatsapp_bot/index.js || { log "ERROR: WhatsApp source syntax check failed."; exit 1; }
 
 log "Starting Django web server..."
