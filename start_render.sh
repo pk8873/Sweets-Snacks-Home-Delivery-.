@@ -95,11 +95,15 @@ node whatsapp_bot/prepare_whatsapp_runtime_v38.js || {
   log "ERROR: WhatsApp runtime V38 preparation failed."
   exit 1
 }
-# V39 fixes the next failure visible in Render: QR is received, but the first
-# pairing-code request immediately gets HTTP 429. It waits 8 seconds after the
-# QR/auth event and uses a controlled 60-second retry instead of rapid requests.
+# V39 added a QR-side backoff, but the old V7 helper can still coexist with it.
+# V40 replaces the entire final connect() function so there is exactly one
+# serialized pairing-code flow, with 429 backoff and incoming-event diagnostics.
 node whatsapp_bot/prepare_whatsapp_runtime_v39.js || {
   log "ERROR: WhatsApp runtime V39 preparation failed."
+  exit 1
+}
+node whatsapp_bot/prepare_whatsapp_runtime_v40.js || {
+  log "ERROR: WhatsApp runtime V40 preparation failed."
   exit 1
 }
 node --check whatsapp_bot/index.js || {
