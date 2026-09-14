@@ -97,12 +97,10 @@ if (!requestRateLimitMatch) {
   throw new Error("V49 could not locate the pairing request 429 handler.");
 }
 const requestRateLimitAnchor = requestRateLimitMatch[0];
-if (!source.includes("await savePairingCooldown(whatsappPairingRateLimitedUntil);")) {
-  source = source.replace(
-    requestRateLimitAnchor,
-    requestRateLimitAnchor + "\n        await savePairingCooldown(whatsappPairingRateLimitedUntil);"
-  );
-}
+source = source.replace(
+  requestRateLimitAnchor,
+  requestRateLimitAnchor + "\n        await savePairingCooldown(whatsappPairingRateLimitedUntil);"
+);
 
 const closeRateLimitPattern = /        whatsappPairingRateLimitedUntil\s*=\s*Math\.max\([\s\S]*?\n        \);/;
 const closeRateLimitMatch = source.match(closeRateLimitPattern);
@@ -110,23 +108,19 @@ if (!closeRateLimitMatch) {
   throw new Error("V49 could not locate the connection-close 429 handler.");
 }
 const closeRateLimitAnchor = closeRateLimitMatch[0];
-if (!source.includes("await savePairingCooldown(whatsappPairingRateLimitedUntil);")) {
-  source = source.replace(
-    closeRateLimitAnchor,
-    closeRateLimitAnchor + "\n        await savePairingCooldown(whatsappPairingRateLimitedUntil);"
-  );
-}
+source = source.replace(
+  closeRateLimitAnchor,
+  closeRateLimitAnchor + "\n        await savePairingCooldown(whatsappPairingRateLimitedUntil);"
+);
 
 const openAnchor = "      whatsappPairingRateLimitedUntil = 0;";
 if (!source.includes(openAnchor)) {
   throw new Error("V49 could not locate the WhatsApp connection-open cooldown reset.");
 }
-if (!source.includes("await clearPairingCooldown();")) {
-  source = source.replace(
-    openAnchor,
-    openAnchor + "\n      await clearPairingCooldown();"
-  );
-}
+source = source.replace(
+  openAnchor,
+  openAnchor + "\n      await clearPairingCooldown();"
+);
 
 source = source.replace(/\n+$/, "") + `\n\n// ${marker}\n`;
 fs.writeFileSync(file, source, "utf8");
