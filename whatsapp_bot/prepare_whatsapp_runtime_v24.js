@@ -16,7 +16,7 @@ if (!src.includes(importLine)) {
 }
 src = src.replace(importLine, importReplacement);
 
-const buttonsPattern = /async function buttons\(sock, jid, text, items\) \{[\s\S]*?\n\}/;
+const buttonsPattern = /async function buttons\(sock, jid, text, items\) \{[\s\S]*?\n\}(?=async function list)/;
 const buttonsReplacement = `async function buttons(sock, jid, text, items) {
   const clean = items.filter(Boolean).slice(0, 3);
   if (!clean.length) return;
@@ -85,14 +85,15 @@ const buttonsReplacement = `async function buttons(sock, jid, text, items) {
       text: `${text}\n\n${clean.map((x, i) => `${i + 1}. ${x.text}`).join("\\n")}`
     });
   }
-}`;
+}
+`;
 
 if (!buttonsPattern.test(src)) {
   throw new Error("Unable to replace WhatsApp buttons() for V24.");
 }
 src = src.replace(buttonsPattern, buttonsReplacement);
 
-const listPattern = /async function list\(sock, jid, text, rows, title = "Choose"\) \{[\s\S]*?\n\}/;
+const listPattern = /async function list\(sock, jid, text, rows, title = "Choose"\) \{[\s\S]*?\n\}(?=async function home)/;
 const listReplacement = `async function list(sock, jid, text, rows, title = "Choose") {
   const clean = rows.filter(Boolean).slice(0, 10);
   if (!clean.length) return;
@@ -172,7 +173,8 @@ const listReplacement = `async function list(sock, jid, text, rows, title = "Cho
       text: `${text}\n\n${clean.map((x, i) => `${i + 1}. ${x.title}`).join("\\n")}`
     });
   }
-}`;
+}
+`;
 
 if (!listPattern.test(src)) {
   throw new Error("Unable to replace WhatsApp list() for V24.");
