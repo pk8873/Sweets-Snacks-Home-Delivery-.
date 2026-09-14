@@ -9,6 +9,7 @@ from .views import health_check
 
 
 urlpatterns = [
+    path("", health_check, name="root-health"),
     path("admin/", admin.site.urls),
     path("health/", health_check, name="health"),
     path("telegram/", include("telegram_bot.urls")),
