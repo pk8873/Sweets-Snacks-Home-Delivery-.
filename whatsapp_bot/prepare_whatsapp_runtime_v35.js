@@ -11,11 +11,8 @@ if (source.includes(marker)) {
   process.exit(0);
 }
 
-// V23 used sock.sendMessage(... { interactiveMessage }) directly. In the
-// pinned Baileys build used by this project that path is treated as an
-// unsupported media/content type and throws: "Invalid media type".
-// V35 keeps all existing button IDs and business logic, but sends the same
-// Native Flow protobuf through generateWAMessageFromContent + relayMessage.
+// V23's direct interactiveMessage send path is not accepted reliably by the
+// pinned Baileys build. V35 sends Native Flow through the protobuf + relay path.
 const importNeedle = 'import makeWASocket, { Browsers, DisconnectReason, fetchLatestWaWebVersion } from "@whiskeysockets/baileys";';
 const importReplacement = 'import makeWASocket, { Browsers, DisconnectReason, fetchLatestWaWebVersion, generateWAMessageFromContent, proto } from "@whiskeysockets/baileys";';
 if (!source.includes(importNeedle)) {
@@ -93,9 +90,9 @@ async function buttons(sock, jid, text, items) {
     await sendNativeFlow(sock, jid, text, clean);
   } catch (error) {
     logger.error({ error: error?.message || error, stack: error?.stack }, "V35 Native Flow button relay failed");
-    // Keep the existing text fallback so the bot never becomes silent.
-    const fallback = clean.map((x, i) => `${i + 1}. ${String(x.text || "")}`).join("\n");
-    await sock.sendMessage(jid, { text: `${String(text || "")}\n\n${fallback}` });
+    // Text fallback guarantees the customer still gets a usable response.
+    const fallback = clean.map((x, i) => (i + 1) + ". " + String(x.text || "")).join("\n");
+    await sock.sendMessage(jid, { text: String(text || "") + "\n\n" + fallback });
   }
 }
 async function list`,
@@ -118,21 +115,21 @@ replaceRequired(
       await sendNativeFlow(
         sock,
         jid,
-        start === 0 ? text : `More ${title || "options"}:`,
+        start === 0 ? text : "More " + String(title || "options") + ":",
         items
       );
     }
   } catch (error) {
     logger.error({ error: error?.message || error, stack: error?.stack }, "V35 Native Flow list relay failed");
-    const fallback = clean.map((x, i) => `${i + 1}. ${String(x.title || "")}`).join("\n");
-    await sock.sendMessage(jid, { text: `${String(text || "")}\n\n${fallback}` });
+    const fallback = clean.map((x, i) => (i + 1) + ". " + String(x.title || "")).join("\n");
+    await sock.sendMessage(jid, { text: String(text || "") + "\n\n" + fallback });
   }
 }
 async function home`,
   "list()"
 );
 
-source = `// ${marker}\n${source}`;
+source = "// " + marker + "\n" + source;
 fs.writeFileSync(file, source, "utf8");
 execFileSync(process.execPath, ["--check", path], { stdio: "inherit" });
-console.log("WhatsApp runtime fix V35 applied; low-level Native Flow relay + existing action IDs preserved + syntax check passed.");
+console.log("WhatsApp runtime fix V35 applied; low-level Native Flow relay + safe fallback + syntax check passed.");
