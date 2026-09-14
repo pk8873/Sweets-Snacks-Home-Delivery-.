@@ -18,137 +18,34 @@ else
 fi
 
 log "Preparing WhatsApp source..."
-node whatsapp_bot/prepare_pairing.js || {
-  log "ERROR: WhatsApp pairing preparation failed."
-  exit 1
-}
-node whatsapp_bot/prepare_pairing_v7.js || {
-  log "ERROR: WhatsApp pairing V7 preparation failed."
-  exit 1
-}
-node whatsapp_bot/prepare_whatsapp_runtime.js || {
-  log "ERROR: WhatsApp runtime preparation failed."
-  exit 1
-}
-node whatsapp_bot/prepare_whatsapp_runtime_v23.js || {
-  log "ERROR: WhatsApp runtime V23 preparation failed."
-  exit 1
-}
-node whatsapp_bot/prepare_whatsapp_runtime_v27.js || {
-  log "ERROR: WhatsApp runtime V27 preparation failed."
-  exit 1
-}
-node whatsapp_bot/prepare_whatsapp_runtime_v28.js || {
-  log "ERROR: WhatsApp runtime V28 preparation failed."
-  exit 1
-}
-# V29/V30 are intentionally not run. Both depended on brittle assumptions about
-# the exact one-line state declaration in index.js. V31 validates the handler
-# structurally and patches only stable action/event boundaries.
-node whatsapp_bot/prepare_whatsapp_runtime_v31.js || {
-  log "ERROR: WhatsApp runtime V31 preparation failed."
-  exit 1
-}
-# V32 attempted to relocate the V28 branch, but the Render runtime still reached
-# the handler through a temporal-dead-zone path. V33 now deterministically moves
-# the session declaration immediately after the JID guard.
-node whatsapp_bot/prepare_whatsapp_runtime_v32.js || {
-  log "ERROR: WhatsApp runtime V32 preparation failed."
-  exit 1
-}
-node whatsapp_bot/prepare_whatsapp_runtime_v33.js || {
-  log "ERROR: WhatsApp runtime V33 preparation failed."
-  exit 1
-}
-# V34 is the final handler normalization. It replaces the accumulated patched
-# handler with one clean implementation, removes the `text` TDZ failure path,
-# and keeps all existing shop/cart/address/order/payment actions.
-node whatsapp_bot/prepare_whatsapp_runtime_v34.js || {
-  log "ERROR: WhatsApp runtime V34 preparation failed."
-  exit 1
-}
-# V35 fixes only the WhatsApp Native Flow transport. V23's direct
-# sock.sendMessage(interactiveMessage) path throws "Invalid media type" in the
-# pinned Baileys build. V35 uses the protobuf + relayMessage path while keeping
-# every existing button/action ID and business handler unchanged.
-node whatsapp_bot/prepare_whatsapp_runtime_v35.js || {
-  log "ERROR: WhatsApp runtime V35 preparation failed."
-  exit 1
-}
-# V36 fixes the handler temporal-dead-zone bug introduced by the V33 state
-# relocation: `text` must be initialized before `lower = text.toLowerCase()`.
-node whatsapp_bot/prepare_whatsapp_runtime_v36.js || {
-  log "ERROR: WhatsApp source syntax check failed."
-  exit 1
-}
-# V37 fixes the current Render/WhatsApp 401 device_removed pattern by removing
-# the Windows desktop browser advertisement and returning to a WEB_BROWSER-style
-# Ubuntu browser tuple. It also removes the custom companion platform display.
-node whatsapp_bot/prepare_whatsapp_runtime_v37.js || {
-  log "ERROR: WhatsApp runtime V37 preparation failed."
-  exit 1
-}
-# V38 fixes the pairing race seen in Render logs: V7's timer was requesting the
-# code before the QR/auth-ready event and blocking the real QR handler. V38 also
-# uses the canonical Chrome/Mac OS browser tuple required by pairing-code flow.
-node whatsapp_bot/prepare_whatsapp_runtime_v38.js || {
-  log "ERROR: WhatsApp runtime V38 preparation failed."
-  exit 1
-}
-# V39 added a QR-side backoff, but the old V7 helper can still coexist with it.
-# V40 replaces the entire final connect() function so there is exactly one
-# serialized pairing-code flow, with 429 backoff and incoming-event diagnostics.
-node whatsapp_bot/prepare_whatsapp_runtime_v39.js || {
-  log "ERROR: WhatsApp runtime V39 preparation failed."
-  exit 1
-}
-node whatsapp_bot/prepare_whatsapp_runtime_v40.js || {
-  log "ERROR: WhatsApp runtime V40 preparation failed."
-  exit 1
-}
-# V41 is kept as the stable connect() baseline. V43 replaces its connect()
-# function with a pairing-code-only implementation and intentionally ignores QR.
-node whatsapp_bot/prepare_whatsapp_runtime_v41.js || {
-  log "ERROR: WhatsApp runtime V41 preparation failed."
-  exit 1
-}
-node whatsapp_bot/prepare_whatsapp_runtime_v43.js || {
-  log "ERROR: WhatsApp runtime V43 preparation failed."
-  exit 1
-}
-# V44 fixes the current pairing-code "device could not connect" failure by
-# using the canonical Windows/Chrome companion identity accepted by WhatsApp
-# for phone-number pairing. It leaves the existing business handler unchanged.
-node whatsapp_bot/prepare_whatsapp_runtime_v44.js || {
-  log "ERROR: WhatsApp runtime V44 preparation failed."
-  exit 1
-}
-# V45 is a final safety gate. It does not change business logic; it verifies
-# that the V35 protobuf + relayMessage Native Flow transport is still present
-# after all later startup patches. This prevents Render from silently deploying
-# a source state where WhatsApp buttons regress to plain text.
-node whatsapp_bot/prepare_whatsapp_runtime_v45.js || {
-  log "ERROR: WhatsApp runtime V45 validation failed."
-  exit 1
-}
-# V46 is the final pairing lifecycle guard. It waits for the initial QR/registration
-# handshake before requesting the code, treats 429 as a real WhatsApp rate limit,
-# and prevents the reconnect loop from hammering the pairing endpoint for 30 minutes.
-node whatsapp_bot/prepare_whatsapp_runtime_v46.js || {
-  log "ERROR: WhatsApp runtime V46 preparation failed."
-  exit 1
-}
-# V47 keeps the V46 pairing-code flow intact but prints the actual QR whenever
-# WhatsApp provides one. This gives the account a safe QR fallback if the
-# phone-number pairing endpoint returns 429 rate-overlimit.
-node whatsapp_bot/prepare_whatsapp_runtime_v47.js || {
-  log "ERROR: WhatsApp runtime V47 preparation failed."
-  exit 1
-}
-node --check whatsapp_bot/index.js || {
-  log "ERROR: WhatsApp source syntax check failed."
-  exit 1
-}
+node whatsapp_bot/prepare_pairing.js || { log "ERROR: WhatsApp pairing preparation failed."; exit 1; }
+node whatsapp_bot/prepare_pairing_v7.js || { log "ERROR: WhatsApp pairing V7 preparation failed."; exit 1; }
+node whatsapp_bot/prepare_whatsapp_runtime.js || { log "ERROR: WhatsApp runtime preparation failed."; exit 1; }
+node whatsapp_bot/prepare_whatsapp_runtime_v23.js || { log "ERROR: WhatsApp runtime V23 preparation failed."; exit 1; }
+node whatsapp_bot/prepare_whatsapp_runtime_v27.js || { log "ERROR: WhatsApp runtime V27 preparation failed."; exit 1; }
+node whatsapp_bot/prepare_whatsapp_runtime_v28.js || { log "ERROR: WhatsApp runtime V28 preparation failed."; exit 1; }
+node whatsapp_bot/prepare_whatsapp_runtime_v31.js || { log "ERROR: WhatsApp runtime V31 preparation failed."; exit 1; }
+node whatsapp_bot/prepare_whatsapp_runtime_v32.js || { log "ERROR: WhatsApp runtime V32 preparation failed."; exit 1; }
+node whatsapp_bot/prepare_whatsapp_runtime_v33.js || { log "ERROR: WhatsApp runtime V33 preparation failed."; exit 1; }
+node whatsapp_bot/prepare_whatsapp_runtime_v34.js || { log "ERROR: WhatsApp runtime V34 preparation failed."; exit 1; }
+node whatsapp_bot/prepare_whatsapp_runtime_v35.js || { log "ERROR: WhatsApp runtime V35 preparation failed."; exit 1; }
+# V36 fixes the handler temporal-dead-zone bug introduced by the V33 state relocation.
+node whatsapp_bot/prepare_whatsapp_runtime_v36.js || { log "ERROR: WhatsApp runtime V36 preparation failed."; exit 1; }
+node whatsapp_bot/prepare_whatsapp_runtime_v37.js || { log "ERROR: WhatsApp runtime V37 preparation failed."; exit 1; }
+node whatsapp_bot/prepare_whatsapp_runtime_v38.js || { log "ERROR: WhatsApp runtime V38 preparation failed."; exit 1; }
+node whatsapp_bot/prepare_whatsapp_runtime_v39.js || { log "ERROR: WhatsApp runtime V39 preparation failed."; exit 1; }
+node whatsapp_bot/prepare_whatsapp_runtime_v40.js || { log "ERROR: WhatsApp runtime V40 preparation failed."; exit 1; }
+node whatsapp_bot/prepare_whatsapp_runtime_v41.js || { log "ERROR: WhatsApp runtime V41 preparation failed."; exit 1; }
+node whatsapp_bot/prepare_whatsapp_runtime_v43.js || { log "ERROR: WhatsApp runtime V43 preparation failed."; exit 1; }
+node whatsapp_bot/prepare_whatsapp_runtime_v44.js || { log "ERROR: WhatsApp runtime V44 preparation failed."; exit 1; }
+node whatsapp_bot/prepare_whatsapp_runtime_v45.js || { log "ERROR: WhatsApp runtime V45 validation failed."; exit 1; }
+# V46 is the final pairing lifecycle guard: QR/registration handshake, 429 cooldown,
+# and reconnect protection prevent repeated pairing requests from hammering WhatsApp.
+node whatsapp_bot/prepare_whatsapp_runtime_v46.js || { log "ERROR: WhatsApp runtime V46 preparation failed."; exit 1; }
+# V47 prints the actual QR whenever WhatsApp provides one, giving a safe QR fallback
+# when phone-number pairing is temporarily rate-limited with HTTP 429.
+node whatsapp_bot/prepare_whatsapp_runtime_v47.js || { log "ERROR: WhatsApp runtime V47 preparation failed."; exit 1; }
+node --check whatsapp_bot/index.js || { log "ERROR: WhatsApp source syntax check failed."; exit 1; }
 
 log "Starting Django web server..."
 gunicorn config.asgi:application -k uvicorn.workers.UvicornWorker --bind 0.0.0.0:${PORT} &
