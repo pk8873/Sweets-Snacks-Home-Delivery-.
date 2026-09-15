@@ -13,7 +13,7 @@ if (source.includes(marker)) {
 }
 
 // V74 fixes only WhatsApp interactive transport. No Django/business logic is changed.
-// Important: the previous high-level sendMessage({ interactiveMessage }) path throws
+// The previous high-level sendMessage({ interactiveMessage }) path throws
 // "Invalid media type" in WhiskeySockets. We build the protobuf message directly and
 // relay it with the required biz/bot nodes. We also use quick_reply for menu/list rows
 // because single_select is not reliably rendered by WhatsApp Web.
@@ -132,7 +132,7 @@ async function list(sock, jid, text, rows, title = "Choose") {
   }));
 
   try {
-    await sendNativeFlow(sock, jid, `${String(text || "")}\\n\\n${String(title || "Choose")}:`, nativeButtons);
+    await sendNativeFlow(sock, jid, `\${String(text || "")}\\n\\n\${String(title || "Choose")}:`, nativeButtons);
   } catch (error) {
     logger.error({
       error: error?.message || error,
