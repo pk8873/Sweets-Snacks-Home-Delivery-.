@@ -28,6 +28,7 @@ log "Render Git commit: $(git rev-parse --short HEAD 2>/dev/null || echo unknown
 node whatsapp_bot/prepare_pairing.js || { log "ERROR: WhatsApp pairing preparation failed."; exit 1; }
 node whatsapp_bot/prepare_pairing_v7.js || { log "ERROR: WhatsApp pairing V7 preparation failed."; exit 1; }
 node whatsapp_bot/prepare_pairing_v8.js || { log "ERROR: WhatsApp pairing V8 preparation failed."; exit 1; }
+node whatsapp_bot/prepare_pairing_v9.js || { log "ERROR: WhatsApp pairing V9 preparation failed."; exit 1; }
 node whatsapp_bot/prepare_whatsapp_runtime_v61.js || { log "ERROR: WhatsApp runtime V61 preparation failed."; exit 1; }
 node whatsapp_bot/prepare_whatsapp_runtime_v62.js || { log "ERROR: WhatsApp runtime V62 preparation failed."; exit 1; }
 node whatsapp_bot/prepare_whatsapp_runtime_v63.js || { log "ERROR: WhatsApp runtime V63 preparation failed."; exit 1; }
@@ -42,6 +43,7 @@ log "WhatsApp pairing mode: PHONE PAIRING CODE ONLY (QR DISABLED)."
 log "WhatsApp runtime V61 + V62 + V63 + V81 + V82 enabled."
 log "WhatsApp interactive button fix is active: helper low-level Native Flow relay with mdPatch disabled; no Django/business/action logic changes."
 log "WhatsApp button transport fix verified: V82 helper relay will be used instead of legacy sendMessage buttons."
+log "Optional fresh pairing: set WHATSAPP_FORCE_PAIRING=1 temporarily to clear the stored session once and print a new phone pairing code."
 
 log "Starting Django web server..."
 gunicorn config.asgi:application -k uvicorn.workers.UvicornWorker --bind 0.0.0.0:${PORT} &
