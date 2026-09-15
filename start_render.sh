@@ -18,6 +18,7 @@ else
 fi
 
 log "Preparing WhatsApp source..."
+log "Render Git commit: $(git rev-parse --short HEAD 2>/dev/null || echo unknown)"
 node whatsapp_bot/prepare_pairing.js || { log "ERROR: WhatsApp pairing preparation failed."; exit 1; }
 node whatsapp_bot/prepare_pairing_v7.js || { log "ERROR: WhatsApp pairing V7 preparation failed."; exit 1; }
 
