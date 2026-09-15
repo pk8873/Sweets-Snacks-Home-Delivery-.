@@ -42,6 +42,7 @@ node whatsapp_bot/prepare_whatsapp_runtime_v65.js || { log "ERROR: WhatsApp runt
 # handlers, Django APIs, orders, cart, payments and delivery logic stay intact.
 node whatsapp_bot/prepare_whatsapp_runtime_v66.js || { log "ERROR: WhatsApp runtime V66 preparation failed."; exit 1; }
 node --check whatsapp_bot/index.js || { log "ERROR: WhatsApp source syntax check failed."; exit 1; }
+node --input-type=module -e 'import fs from "node:fs"; const s=fs.readFileSync("whatsapp_bot/index.js","utf8"); for (const x of ["WHATSAPP_RUNTIME_FIX_V66","sendButtons","sendListMessage"]) { if (!s.includes(x)) throw new Error(`WhatsApp interactive transport verification failed: ${x}`); } console.log("WhatsApp interactive transport verification passed: V66 + helper sendButtons/sendListMessage");' || { log "ERROR: WhatsApp interactive transport verification failed."; exit 1; }
 log "WhatsApp runtime V61 + V62 + V63 + V64 + V65 + V66 are enabled; legacy runtime patch chain is disabled."
 
 log "Starting Django web server..."
