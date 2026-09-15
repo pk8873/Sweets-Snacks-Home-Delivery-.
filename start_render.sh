@@ -41,9 +41,13 @@ node whatsapp_bot/prepare_whatsapp_runtime_v65.js || { log "ERROR: WhatsApp runt
 # This changes only WhatsApp interactive transport; all existing button IDs,
 # handlers, Django APIs, orders, cart, payments and delivery logic stay intact.
 node whatsapp_bot/prepare_whatsapp_runtime_v66.js || { log "ERROR: WhatsApp runtime V66 preparation failed."; exit 1; }
+# V67 intentionally returns to the helper's low-level sendInteractiveMessage
+# relay for maximum compatibility with the pinned WhiskeySockets build. It
+# preserves all existing button IDs and business handlers; only transport is changed.
+node whatsapp_bot/prepare_whatsapp_runtime_v67.js || { log "ERROR: WhatsApp runtime V67 preparation failed."; exit 1; }
 node --check whatsapp_bot/index.js || { log "ERROR: WhatsApp source syntax check failed."; exit 1; }
-node --input-type=module -e 'import fs from "node:fs"; const s=fs.readFileSync("whatsapp_bot/index.js","utf8"); for (const x of ["WHATSAPP_RUNTIME_FIX_V66","sendButtons","sendListMessage"]) { if (!s.includes(x)) throw new Error(`WhatsApp interactive transport verification failed: ${x}`); } console.log("WhatsApp interactive transport verification passed: V66 + helper sendButtons/sendListMessage");' || { log "ERROR: WhatsApp interactive transport verification failed."; exit 1; }
-log "WhatsApp runtime V61 + V62 + V63 + V64 + V65 + V66 are enabled; legacy runtime patch chain is disabled."
+node --input-type=module -e 'import fs from "node:fs"; const s=fs.readFileSync("whatsapp_bot/index.js","utf8"); for (const x of ["WHATSAPP_RUNTIME_FIX_V67","sendInteractiveMessage"]) { if (!s.includes(x)) throw new Error(`WhatsApp interactive transport verification failed: ${x}`); } if (s.includes("sendButtons") || s.includes("sendListMessage")) throw new Error("WhatsApp interactive transport verification failed: V66 convenience transport still active"); console.log("WhatsApp interactive transport verification passed: V67 low-level native-flow relay");' || { log "ERROR: WhatsApp interactive transport verification failed."; exit 1; }
+log "WhatsApp runtime V61 + V62 + V63 + V64 + V65 + V66 + V67 are enabled; V67 is the final interactive transport layer."
 
 log "Starting Django web server..."
 gunicorn config.asgi:application -k uvicorn.workers.UvicornWorker --bind 0.0.0.0:${PORT} &
