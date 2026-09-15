@@ -76,7 +76,10 @@ node whatsapp_bot/prepare_whatsapp_runtime_v58.js || { log "ERROR: WhatsApp runt
 # without the viewOnce wrapper, and lists use the Web-compatible legacy list
 # transport. Customer/business handlers are unchanged.
 node whatsapp_bot/prepare_whatsapp_runtime_v59.js || { log "ERROR: WhatsApp runtime V59 preparation failed."; exit 1; }
-log "WhatsApp clickable-button transport fix V59 is enabled."
+# V60 is a fail-fast final validation of the clickable-button sender.
+# It does not modify customer/business logic or the Django/Telegram layers.
+node whatsapp_bot/prepare_whatsapp_runtime_v60.js || { log "ERROR: WhatsApp runtime V60 validation failed."; exit 1; }
+log "WhatsApp clickable-button transport fix V59/V60 is enabled."
 node --check whatsapp_bot/index.js || { log "ERROR: WhatsApp source syntax check failed."; exit 1; }
 
 log "Starting Django web server..."
