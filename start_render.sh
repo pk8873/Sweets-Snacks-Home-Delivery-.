@@ -35,8 +35,12 @@ node whatsapp_bot/prepare_whatsapp_runtime_v63.js || { log "ERROR: WhatsApp runt
 # WhiskeySockets content path rejects interactiveMessage as media; the helper
 # uses the low-level native-flow relay and required WhatsApp biz nodes.
 node whatsapp_bot/prepare_whatsapp_runtime_v64.js || { log "ERROR: WhatsApp runtime V64 preparation failed."; exit 1; }
+# V65 does not change business logic. It validates the helper export, confirms
+# the interactive button/list transport is installed, and fails early with a
+# clear error if the dependency is unavailable.
+node whatsapp_bot/prepare_whatsapp_runtime_v65.js || { log "ERROR: WhatsApp runtime V65 preparation failed."; exit 1; }
 node --check whatsapp_bot/index.js || { log "ERROR: WhatsApp source syntax check failed."; exit 1; }
-log "WhatsApp runtime V61 + V62 + V63 + V64 are enabled; legacy runtime patch chain is disabled."
+log "WhatsApp runtime V61 + V62 + V63 + V64 + V65 are enabled; legacy runtime patch chain is disabled."
 
 log "Starting Django web server..."
 gunicorn config.asgi:application -k uvicorn.workers.UvicornWorker --bind 0.0.0.0:${PORT} &
