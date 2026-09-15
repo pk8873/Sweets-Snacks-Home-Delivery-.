@@ -124,6 +124,19 @@ if RENDER_EXTERNAL_HOSTNAME:
 
 
 # ============================================================
+# TELEGRAM
+# ============================================================
+# The webhook setup script reads TELEGRAM_BOT_TOKEN directly from the
+# environment, while telegram_bot.bot reads it from Django settings.
+# Expose the same Render environment variables through settings so both
+# startup webhook configuration and incoming webhook processing use the
+# exact same credentials/configuration.
+TELEGRAM_BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN", "").strip()
+TELEGRAM_WEBHOOK_SECRET = os.getenv("TELEGRAM_WEBHOOK_SECRET", "").strip()
+TELEGRAM_WEBHOOK_URL = os.getenv("TELEGRAM_WEBHOOK_URL", "").strip()
+
+
+# ============================================================
 # URL
 # ============================================================
 
