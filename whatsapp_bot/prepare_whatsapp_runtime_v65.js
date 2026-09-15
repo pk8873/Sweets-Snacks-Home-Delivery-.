@@ -14,6 +14,20 @@ function assertContains(value, label) {
 // transport introduced by V64. It does not touch any Django, Telegram,
 // product, cart, order, payment, delivery, customer, or business logic.
 
+if (source.includes(marker)) {
+  execFileSync(process.execPath, ["--check", path], { stdio: "inherit" });
+  const helperModule = await import("zqbaileys_helper");
+  const helper = helperModule?.default || helperModule;
+  if (typeof helper?.sendInteractiveMessage !== "function") {
+    throw new Error("V65 validation failed: zqbaileys_helper.sendInteractiveMessage is unavailable.");
+  }
+  assertContains("sendInteractiveMessage", "helper transport");
+  assertContains('name: "quick_reply"', "quick_reply transport");
+  assertContains('name: "single_select"', "single_select transport");
+  console.log("WhatsApp runtime V65 already applied; helper export + transport + syntax validation passed.");
+  process.exit(0);
+}
+
 if (!source.includes("zqbaileys_helper")) {
   const importNeedle = 'import qrcode from "qrcode-terminal";';
   if (!source.includes(importNeedle)) throw new Error("V65 could not locate qrcode import boundary.");
