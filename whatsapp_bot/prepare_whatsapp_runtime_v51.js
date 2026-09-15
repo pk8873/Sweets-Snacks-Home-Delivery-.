@@ -122,7 +122,8 @@ async function buttons(sock, jid, text, items) {
     logger.info({ event: "whatsapp.native_flow.sent", kind: "buttons", count: clean.length }, "Native Flow buttons sent");
   } catch (error) {
     logger.error({ error: error?.message || error }, "Native Flow button send failed");
-    await sock.sendMessage(jid, { text: `${text}\\n\\n${clean.map((x, i) => `${i + 1}. ${x.text}`).join("\\n")}` });
+    const fallback = [String(text || ""), "", clean.map((x, i) => String(i + 1) + ". " + String(x.text || "")).join("\n")].join("\n");
+    await sock.sendMessage(jid, { text: fallback });
   }
 }
 
@@ -153,7 +154,8 @@ async function list(sock, jid, text, rows, title = "Choose") {
     logger.info({ event: "whatsapp.native_flow.sent", kind: "single_select", count: clean.length }, "Native Flow list sent");
   } catch (error) {
     logger.error({ error: error?.message || error }, "Native Flow list send failed");
-    await sock.sendMessage(jid, { text: `${text}\\n\\n${clean.map((x, i) => `${i + 1}. ${x.title}`).join("\\n")}` });
+    const fallback = [String(text || ""), "", clean.map((x, i) => String(i + 1) + ". " + String(x.title || "")).join("\n")].join("\n");
+    await sock.sendMessage(jid, { text: fallback });
   }
 }
 
