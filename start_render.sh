@@ -48,6 +48,7 @@ node whatsapp_bot/prepare_whatsapp_runtime_v49.js || { log "ERROR: WhatsApp runt
 node whatsapp_bot/prepare_whatsapp_runtime_v50.js || { log "ERROR: WhatsApp runtime V50 preparation failed."; exit 1; }
 # V51 fixes the WhatsApp button rendering layer only. It builds Native Flow
 # protobuf messages directly and relays the required bot/biz nodes.
+# It does NOT change customer/business handlers.
 node whatsapp_bot/prepare_whatsapp_runtime_v51.js || { log "ERROR: WhatsApp runtime V51 preparation failed."; exit 1; }
 # V52 hardens the Native Flow relay: retry without optional extra nodes before
 # falling back to plain text. No customer/business handlers are changed.
@@ -61,6 +62,9 @@ node whatsapp_bot/prepare_whatsapp_runtime_v54.js || { log "ERROR: WhatsApp runt
 # MD-compatible relay structure: documentWithCaptionMessage + biz + bot nodes.
 # It does NOT delete or recreate WhatsApp auth/session data.
 node whatsapp_bot/prepare_whatsapp_runtime_v55.js || { log "ERROR: WhatsApp runtime V55 preparation failed."; exit 1; }
+# V56 is a fail-fast validation that guarantees the V55 low-level Native Flow
+# relay is the active sender before the WhatsApp process starts.
+node whatsapp_bot/prepare_whatsapp_runtime_v56.js || { log "ERROR: WhatsApp runtime V56 validation failed."; exit 1; }
 node --check whatsapp_bot/index.js || { log "ERROR: WhatsApp source syntax check failed."; exit 1; }
 
 log "Starting Django web server..."
