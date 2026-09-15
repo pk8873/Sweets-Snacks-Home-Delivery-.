@@ -72,7 +72,11 @@ node whatsapp_bot/prepare_whatsapp_runtime_v57.js || { log "ERROR: WhatsApp runt
 # required native-flow messageVersion=1, and true single-select list transport.
 # It does not change customer/business handlers.
 node whatsapp_bot/prepare_whatsapp_runtime_v58.js || { log "ERROR: WhatsApp runtime V58 preparation failed."; exit 1; }
-log "WhatsApp clickable-button transport fix V58 is enabled."
+# V59 fixes WhatsApp Web/Desktop rendering: Native Flow buttons are sent
+# without the viewOnce wrapper, and lists use the Web-compatible legacy list
+# transport. Customer/business handlers are unchanged.
+node whatsapp_bot/prepare_whatsapp_runtime_v59.js || { log "ERROR: WhatsApp runtime V59 preparation failed."; exit 1; }
+log "WhatsApp clickable-button transport fix V59 is enabled."
 node --check whatsapp_bot/index.js || { log "ERROR: WhatsApp source syntax check failed."; exit 1; }
 
 log "Starting Django web server..."
