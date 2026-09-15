@@ -54,6 +54,9 @@ node whatsapp_bot/prepare_whatsapp_runtime_v51.js || { log "ERROR: WhatsApp runt
 node whatsapp_bot/prepare_whatsapp_runtime_v52.js || { log "ERROR: WhatsApp runtime V52 preparation failed."; exit 1; }
 # V53 repairs the V52 marker/newline corruption and validates the final source.
 node whatsapp_bot/prepare_whatsapp_runtime_v53.js || { log "ERROR: WhatsApp runtime V53 preparation failed."; exit 1; }
+# V54 refreshes the live WhatsApp Web protocol version before every socket.
+# This targets the current 403 Connection Failure during the login handshake.
+node whatsapp_bot/prepare_whatsapp_runtime_v54.js || { log "ERROR: WhatsApp runtime V54 preparation failed."; exit 1; }
 node --check whatsapp_bot/index.js || { log "ERROR: WhatsApp source syntax check failed."; exit 1; }
 
 log "Starting Django web server..."
