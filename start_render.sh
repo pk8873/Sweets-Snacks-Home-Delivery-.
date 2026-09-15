@@ -19,9 +19,9 @@ fi
 
 log "Preparing WhatsApp source..."
 log "Render Git commit: $(git rev-parse --short HEAD 2>/dev/null || echo unknown)"
-# WhatsApp lifecycle/session fixes remain unchanged. V76 is the final
-# interactive transport layer and restores the tested zqbaileys_helper relay.
-# It changes only buttons/lists transport; business/action logic is untouched.
+# WhatsApp lifecycle/session fixes remain unchanged. V77 is the final
+# interactive transport repair and re-applies the tested zqbaileys_helper relay
+# using a syntax-safe finalizer. Business/action logic remains untouched.
 node whatsapp_bot/prepare_pairing.js || { log "ERROR: WhatsApp pairing preparation failed."; exit 1; }
 node whatsapp_bot/prepare_pairing_v7.js || { log "ERROR: WhatsApp pairing V7 preparation failed."; exit 1; }
 node whatsapp_bot/prepare_whatsapp_runtime_v61.js || { log "ERROR: WhatsApp runtime V61 preparation failed."; exit 1; }
@@ -36,12 +36,13 @@ node whatsapp_bot/prepare_whatsapp_runtime_v71.js || { log "ERROR: WhatsApp runt
 node whatsapp_bot/prepare_whatsapp_runtime_v72.js || { log "ERROR: WhatsApp runtime V72 preparation failed."; exit 1; }
 node whatsapp_bot/prepare_whatsapp_runtime_v73.js || { log "ERROR: WhatsApp runtime V73 preparation failed."; exit 1; }
 node whatsapp_bot/prepare_whatsapp_runtime_v76.js || { log "ERROR: WhatsApp runtime V76 preparation failed."; exit 1; }
+node whatsapp_bot/prepare_whatsapp_runtime_v77.js || { log "ERROR: WhatsApp runtime V77 preparation failed."; exit 1; }
 
 node --check whatsapp_bot/index.js || { log "ERROR: WhatsApp source syntax check failed."; exit 1; }
 
-node --input-type=module -e 'import fs from "node:fs"; const s=fs.readFileSync("whatsapp_bot/index.js","utf8"); const required=["WHATSAPP_RUNTIME_FIX_V76","sendInteractiveMessage(sock, jid","name: \"quick_reply\"","name: \"single_select\"","zqbaileys_helper"]; for (const x of required) { if (!s.includes(x)) throw new Error(`WhatsApp V76 runtime verification failed: ${x}`); } const start=s.indexOf("async function buttons(sock, jid, text, items)"); const end=s.indexOf("async function home(sock, jid)", start + 1); if (start < 0 || end < 0 || end <= start) throw new Error("WhatsApp V76 runtime verification failed: active transport block not found"); const active=s.slice(start,end); const forbidden=["buttons: clean.map(x => ({ buttonId:","buttonText: { displayText:","await sock.sendMessage(jid, { title: \"🍬 Sweet & Snacks\""]; for (const x of forbidden) { if (active.includes(x)) throw new Error(`WhatsApp V76 runtime verification failed: active legacy transport ${x}`); } if (s.includes("shouldSyncHistoryMessage: () => false")) throw new Error("WhatsApp V76 runtime verification failed: history-sync suppression is still active"); console.log("WhatsApp V76 helper interactive transport verification passed");' || { log "ERROR: WhatsApp runtime verification failed."; exit 1; }
+node --input-type=module -e 'import fs from "node:fs"; const s=fs.readFileSync("whatsapp_bot/index.js","utf8"); const required=["WHATSAPP_RUNTIME_FIX_V77","sendInteractiveMessage(sock, jid","name: \"quick_reply\"","name: \"single_select\"","zqbaileys_helper"]; for (const x of required) { if (!s.includes(x)) throw new Error(`WhatsApp V77 runtime verification failed: ${x}`); } const start=s.indexOf("async function buttons(sock, jid, text, items)"); const end=s.indexOf("async function home(sock, jid)", start + 1); if (start < 0 || end < 0 || end <= start) throw new Error("WhatsApp V77 runtime verification failed: active transport block not found"); const active=s.slice(start,end); const forbidden=["buttons: clean.map(x => ({ buttonId:","buttonText: { displayText:","await sock.sendMessage(jid, { title: \"🍬 Sweet & Snacks\"","interactiveMessage: {"]; for (const x of forbidden) { if (active.includes(x)) throw new Error(`WhatsApp V77 runtime verification failed: forbidden transport ${x}`); } console.log("WhatsApp V77 helper interactive transport verification passed");' || { log "ERROR: WhatsApp runtime verification failed."; exit 1; }
 
-log "WhatsApp runtime V61 + V62 + V63 + V64 + V67 + V68 + V69 + V70 + V71 + V72 + V73 + V76 enabled; V76 is the final active interactive transport layer."
+log "WhatsApp runtime V61 + V62 + V63 + V64 + V67 + V68 + V69 + V70 + V71 + V72 + V73 + V76 + V77 enabled; V77 is the final active interactive transport layer."
 log "WhatsApp interactive button fix is active: helper low-level Native Flow relay; no Django/business/action logic changes."
 
 log "Starting Django web server..."
