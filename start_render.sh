@@ -52,6 +52,8 @@ node whatsapp_bot/prepare_whatsapp_runtime_v51.js || { log "ERROR: WhatsApp runt
 # V52 hardens the Native Flow relay: retry without optional extra nodes before
 # falling back to plain text. No customer/business handlers are changed.
 node whatsapp_bot/prepare_whatsapp_runtime_v52.js || { log "ERROR: WhatsApp runtime V52 preparation failed."; exit 1; }
+# V53 repairs the V52 marker/newline corruption and validates the final source.
+node whatsapp_bot/prepare_whatsapp_runtime_v53.js || { log "ERROR: WhatsApp runtime V53 preparation failed."; exit 1; }
 node --check whatsapp_bot/index.js || { log "ERROR: WhatsApp source syntax check failed."; exit 1; }
 
 log "Starting Django web server..."
