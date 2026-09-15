@@ -29,6 +29,20 @@ async function connect() {
     throw new Error("WHATSAPP_PHONE_NUMBER must contain 10-15 digits with country code, without + or spaces.");
   }
 
+  // One-time forced re-pair. This is the safe way to recover when the stored
+  // WhatsApp device session is disconnected/rejected and the user needs a new
+  // phone-number pairing code. The /tmp marker prevents repeated session wipes
+  // during the supervisor restart loop.
+  if (String(process.env.WHATSAPP_NEW_PAIRING || "").trim() === "1") {
+    const freshPairingMarker = "/tmp/whatsapp-new-pairing-v13";
+    if (!fs.existsSync(freshPairingMarker) && auth.state.creds.registered) {
+      await auth.deleteSession();
+      fs.writeFileSync(freshPairingMarker, String(Date.now()), "utf8");
+      logger.warn("WhatsApp stored session cleared for one-time fresh phone pairing; restarting now to generate a new pairing code.");
+      process.exit(0);
+    }
+  }
+
   let pairingRequested = false;
   let pairingAttempts = 0;
   let closed = false;
@@ -136,11 +150,15 @@ async function connect() {
       process.exit(0);
     }
 
+    // 515 is a normal restart-required step after successful phone pairing.
+    // Keep the credentials and reconnect instead of stopping the pairing flow.
     if (code === DisconnectReason.restartRequired) {
       reconnect(2000, "restart_required_515");
       return;
     }
 
+    // A 401 before registration means the temporary pairing session is stale.
+    // Delete only the unregistered session and restart so a fresh code is issued.
     if (code === DisconnectReason.badSession && !auth.state.creds.registered) {
       await auth.deleteSession();
       reconnect(2000, "pending_pairing_bad_session_401");
@@ -161,4 +179,4 @@ source = source.replace(pattern, replacement);
 source = `// ${marker}\n${source}`;
 fs.writeFileSync(file, source, "utf8");
 
-console.log("WhatsApp pairing reliability V13 applied: phone pairing waits for socket readiness, 515 reconnects, pending 401 gets a fresh code, and QR is not displayed.");
+console.log("WhatsApp pairing reliability V13 applied: phone pairing waits for socket readiness, 515 reconnects, pending 401 gets a fresh code, QR is not displayed, and WHATSAPP_NEW_PAIRING supports one-time re-pairing.");
