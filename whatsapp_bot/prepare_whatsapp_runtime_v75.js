@@ -52,7 +52,14 @@ const newBiz = `  const privacyModeTs = String(Math.floor(Date.now() / 1000) - 7
       }],
     }, {
       tag: "quality_control",
-      attrs: { source_type: "third_party" },
+      attrs: {
+        decision_id: String(Date.now()) + String(Math.floor(Math.random() * 1000000)),
+        source_type: "third_party",
+      },
+      content: [{
+        tag: "decision_source",
+        attrs: { value: "df" },
+      }],
     }],
   };`;
 
@@ -61,6 +68,30 @@ if (!source.includes(oldBiz)) {
 }
 
 source = source.replace(oldBiz, newBiz);
+
+const oldGenerate = `  const waMessage = generateWAMessageFromContent(
+    jid,
+    { interactiveMessage },
+    { userJid }
+  );`;
+
+const newGenerate = `  const waMessage = generateWAMessageFromContent(
+    jid,
+    {
+      messageContextInfo: {
+        deviceListMetadata: {},
+        deviceListMetadataVersion: 2,
+      },
+      interactiveMessage,
+    },
+    { userJid }
+  );`;
+
+if (!source.includes(oldGenerate)) {
+  throw new Error("V75 could not locate the V74 native-flow message generation block.");
+}
+
+source = source.replace(oldGenerate, newGenerate);
 source = `// ${marker}\n${source}`;
 fs.writeFileSync(file, source, "utf8");
 execFileSync(process.execPath, ["--check", path], { stdio: "inherit" });
@@ -78,7 +109,11 @@ for (const required of [
   'host_storage: "2"',
   "privacy_mode_ts",
   'tag: "quality_control"',
+  'decision_id:',
   'source_type: "third_party"',
+  'tag: "decision_source"',
+  'value: "df"',
+  'deviceListMetadataVersion: 2',
   'biz_bot: "1"',
 ]) {
   if (!finalSource.includes(required)) {
@@ -96,4 +131,4 @@ if (finalSource.includes('interactiveMessage: {')) {
   throw new Error("V75 validation failed: high-level interactiveMessage transport remains active.");
 }
 
-console.log("WhatsApp runtime V75 applied; required biz relay attributes + quality-control node + direct native-flow relay verified.");
+console.log("WhatsApp runtime V75 applied; direct native-flow relay + required biz/quality-control nodes + device metadata + syntax check passed.");
