@@ -78,7 +78,7 @@ const replacement = `async function relayNativeFlow(sock, jid, text, items, titl
 `;
 
 source = source.slice(0, start) + replacement + source.slice(end);
-source = source.replace(/\\n+$/, "") + `\\n\\n// ${marker}\\n`;
+source = source.replace(/\n+$/, "") + `\n\n// ${marker}\n`;
 fs.writeFileSync(file, source, "utf8");
 execFileSync(process.execPath, ["--check", path], { stdio: "inherit" });
 console.log("WhatsApp runtime fix V52 applied; defensive Native Flow relay retry + syntax check passed.");
