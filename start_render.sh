@@ -20,7 +20,7 @@ fi
 log "Preparing WhatsApp source..."
 log "Render Git commit: $(git rev-parse --short HEAD 2>/dev/null || echo unknown)"
 # Keep the existing WhatsApp pairing/session lifecycle patches unchanged.
-# V81 is the isolated interactive transport repair. It uses the tested
+# V82 is the isolated interactive transport repair. It uses the tested
 # zqbaileys_helper low-level relay and does not change Django/business logic.
 # The brittle V64-V80 patch chain is intentionally no longer executed.
 # V8 disables QR display and keeps phone-number pairing code as the only
@@ -32,15 +32,16 @@ node whatsapp_bot/prepare_whatsapp_runtime_v61.js || { log "ERROR: WhatsApp runt
 node whatsapp_bot/prepare_whatsapp_runtime_v62.js || { log "ERROR: WhatsApp runtime V62 preparation failed."; exit 1; }
 node whatsapp_bot/prepare_whatsapp_runtime_v63.js || { log "ERROR: WhatsApp runtime V63 preparation failed."; exit 1; }
 node whatsapp_bot/prepare_whatsapp_runtime_v81.js || { log "ERROR: WhatsApp runtime V81 preparation failed."; exit 1; }
+node whatsapp_bot/prepare_whatsapp_runtime_v82.js || { log "ERROR: WhatsApp runtime V82 preparation failed."; exit 1; }
 
 node --check whatsapp_bot/index.js || { log "ERROR: WhatsApp source syntax check failed."; exit 1; }
 
-node --input-type=module -e 'import fs from "node:fs"; const s=fs.readFileSync("whatsapp_bot/index.js","utf8"); const required=["WHATSAPP_RUNTIME_FIX_V81","sendInteractiveMessage(sock, jid","name: \"quick_reply\"","name: \"single_select\"","zqbaileys_helper"]; for (const x of required) { if (!s.includes(x)) throw new Error(`WhatsApp V81 runtime verification failed: ${x}`); } const start=s.indexOf("async function buttons(sock, jid, text, items)"); const end=s.indexOf("async function home(sock, jid)", start + 1); if (start < 0 || end < 0 || end <= start) throw new Error("WhatsApp V81 runtime verification failed: active transport block not found"); const active=s.slice(start,end); const forbidden=["buttons: clean.map(x => ({ buttonId:","buttonText: { displayText:","await sock.sendMessage(jid, { title: \"🍬 Sweet & Snacks\"","interactiveMessage: {"]; for (const x of forbidden) { if (active.includes(x)) throw new Error(`WhatsApp V81 runtime verification failed: forbidden transport ${x}`); } console.log("WhatsApp V81 helper interactive transport verification passed");' || { log "ERROR: WhatsApp runtime verification failed."; exit 1; }
+node --input-type=module -e 'import fs from "node:fs"; const s=fs.readFileSync("whatsapp_bot/index.js","utf8"); const required=["WHATSAPP_RUNTIME_FIX_V82","sendInteractiveMessage(sock, jid","name: \"quick_reply\"","name: \"single_select\"","zqbaileys_helper","mdPatch: false"]; for (const x of required) { if (!s.includes(x)) throw new Error(`WhatsApp V82 runtime verification failed: ${x}`); } const start=s.indexOf("async function buttons(sock, jid, text, items)"); const end=s.indexOf("async function home(sock, jid)", start + 1); if (start < 0 || end < 0 || end <= start) throw new Error("WhatsApp V82 runtime verification failed: active transport block not found"); const active=s.slice(start,end); const forbidden=["buttons: clean.map(x => ({ buttonId:","buttonText: { displayText:","await sock.sendMessage(jid, { title: \"🍬 Sweet & Snacks\"","interactiveMessage: {"]; for (const x of forbidden) { if (active.includes(x)) throw new Error(`WhatsApp V82 runtime verification failed: forbidden transport ${x}`); } console.log("WhatsApp V82 helper interactive transport verification passed");' || { log "ERROR: WhatsApp runtime verification failed."; exit 1; }
 
 log "WhatsApp pairing mode: PHONE PAIRING CODE ONLY (QR DISABLED)."
-log "WhatsApp runtime V61 + V62 + V63 + V81 enabled."
-log "WhatsApp interactive button fix is active: helper low-level Native Flow relay; no Django/business/action logic changes."
-log "WhatsApp button transport fix verified: V81 helper relay will be used instead of legacy sendMessage buttons."
+log "WhatsApp runtime V61 + V62 + V63 + V81 + V82 enabled."
+log "WhatsApp interactive button fix is active: helper low-level Native Flow relay with mdPatch disabled; no Django/business/action logic changes."
+log "WhatsApp button transport fix verified: V82 helper relay will be used instead of legacy sendMessage buttons."
 
 log "Starting Django web server..."
 gunicorn config.asgi:application -k uvicorn.workers.UvicornWorker --bind 0.0.0.0:${PORT} &
