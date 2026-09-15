@@ -21,8 +21,12 @@ log "Preparing WhatsApp source..."
 log "Render Git commit: $(git rev-parse --short HEAD 2>/dev/null || echo unknown)"
 
 # One consolidated, idempotent WhatsApp preparation step.
-# This replaces the previous V4-V82 mutation chain, which could run against
-# the wrong source shape and make a deployment fail before the bot started.
+# The prerequisite adds imports needed by the consolidated runtime patch.
+node whatsapp_bot/prepare_whatsapp_runtime_prereq.js || {
+  log "ERROR: WhatsApp runtime prerequisite preparation failed."
+  exit 1
+}
+
 node whatsapp_bot/prepare_whatsapp_runtime_v84.js || {
   log "ERROR: WhatsApp runtime V84 preparation failed."
   exit 1
@@ -33,7 +37,7 @@ node --check whatsapp_bot/index.js || {
   exit 1
 }
 
-node --input-type=module -e 'import fs from "node:fs"; const s=fs.readFileSync("whatsapp_bot/index.js","utf8"); const required=["WHATSAPP_RUNTIME_FIX_V84","zqbaileys_helper","sendInteractiveMessage(sock, jid","WHATSAPP PAIRING CODE READY","whatsapp.messages.upsert","saveAddress"]; for (const x of required) { if (!s.includes(x)) throw new Error(`WhatsApp V84 verification failed: ${x}`); } console.log("WhatsApp V84 runtime verification passed");' || {
+node --input-type=module -e 'import fs from "node:fs"; const s=fs.readFileSync("whatsapp_bot/index.js","utf8"); const required=["WHATSAPP_RUNTIME_FIX_V84","zqbaileys_helper","sendInteractiveMessage(sock, jid","WHATSAPP PAIRING CODE READY","whatsapp.messages.upsert","saveAddress","address_input"]; for (const x of required) { if (!s.includes(x)) throw new Error(`WhatsApp V84 verification failed: ${x}`); } console.log("WhatsApp V84 runtime verification passed");' || {
   log "ERROR: WhatsApp runtime verification failed."
   exit 1
 }
