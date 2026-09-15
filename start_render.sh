@@ -21,20 +21,22 @@ log "Preparing WhatsApp source..."
 node whatsapp_bot/prepare_pairing.js || { log "ERROR: WhatsApp pairing preparation failed."; exit 1; }
 node whatsapp_bot/prepare_pairing_v7.js || { log "ERROR: WhatsApp pairing V7 preparation failed."; exit 1; }
 
-# V61 is the FINAL WhatsApp interactive transport layer.
-# It uses Baileys protobuf + relayMessage directly and bypasses the normal
-# sendMessage media validation that caused the recurring "Invalid media type"
-# error. V62/V63 only handle session persistence/reset and do not change
-# buttons, handlers, cart, orders, payments, delivery, or Django APIs.
+# V61 is the consolidated WhatsApp lifecycle/transport base.
+# V62/V63 only handle session persistence/reset and do not change buttons,
+# handlers, cart, orders, payments, delivery, or Django APIs.
+# V64 is the FINAL interactive transport layer: it uses the already-installed
+# zqbaileys_helper low-level relay implementation, which adds the required
+# WhatsApp biz/native_flow/bot nodes and bypasses the Invalid media type path.
 node whatsapp_bot/prepare_whatsapp_runtime_v61.js || { log "ERROR: WhatsApp runtime V61 preparation failed."; exit 1; }
 node whatsapp_bot/prepare_whatsapp_runtime_v62.js || { log "ERROR: WhatsApp runtime V62 preparation failed."; exit 1; }
 node whatsapp_bot/prepare_whatsapp_runtime_v63.js || { log "ERROR: WhatsApp runtime V63 preparation failed."; exit 1; }
+node whatsapp_bot/prepare_whatsapp_runtime_v64.js || { log "ERROR: WhatsApp runtime V64 preparation failed."; exit 1; }
 
 node --check whatsapp_bot/index.js || { log "ERROR: WhatsApp source syntax check failed."; exit 1; }
 
-node --input-type=module -e 'import fs from "node:fs"; const s=fs.readFileSync("whatsapp_bot/index.js","utf8"); const required=["WHATSAPP_RUNTIME_FIX_V61","async function relayNativeFlow","await sock.relayMessage(jid, waMessage.message","messageVersion: 1"]; for (const x of required) { if (!s.includes(x)) throw new Error(`WhatsApp V61 verification failed: ${x}`); } if (s.includes("sendInteractiveMessage") || s.includes("sendButtons") || s.includes("sendListMessage")) throw new Error("WhatsApp V61 verification failed: helper transport override is still active"); if (s.includes("sock.sendMessage(jid, { text, footer: \"Sweet & Snacks\", buttons:")) throw new Error("WhatsApp V61 verification failed: legacy buttons transport is still active"); console.log("WhatsApp interactive transport verification passed: V61 direct protobuf relay");' || { log "ERROR: WhatsApp interactive transport verification failed."; exit 1; }
+node --input-type=module -e 'import fs from "node:fs"; const s=fs.readFileSync("whatsapp_bot/index.js","utf8"); const required=["WHATSAPP_RUNTIME_FIX_V64","zqbaileys_helper","sendInteractiveMessage","name: \"quick_reply\"","name: \"single_select\""]; for (const x of required) { if (!s.includes(x)) throw new Error(`WhatsApp V64 verification failed: ${x}`); } if (s.includes("sock.sendMessage(jid, { text, footer: \"Sweet & Snacks\", buttons:")) throw new Error("WhatsApp V64 verification failed: legacy buttons transport is still active"); console.log("WhatsApp interactive transport verification passed: V64 helper relay");' || { log "ERROR: WhatsApp interactive transport verification failed."; exit 1; }
 
-log "WhatsApp runtime V61 + V62 + V63 enabled; V61 is the single final interactive transport layer."
+log "WhatsApp runtime V61 + V62 + V63 + V64 enabled; V64 is the final interactive transport layer."
 
 log "Starting Django web server..."
 gunicorn config.asgi:application -k uvicorn.workers.UvicornWorker --bind 0.0.0.0:${PORT} &
