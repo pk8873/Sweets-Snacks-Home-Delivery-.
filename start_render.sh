@@ -19,6 +19,8 @@ fi
 
 log "Preparing WhatsApp source..."
 log "Render Git commit: $(git rev-parse --short HEAD 2>/dev/null || echo unknown)"
+# DEPLOY_MARKER_2026_09_15: always deploy the current main branch so V67/V68
+# interactive transport + session lifecycle fixes are not hidden behind an old Render commit.
 node whatsapp_bot/prepare_pairing.js || { log "ERROR: WhatsApp pairing preparation failed."; exit 1; }
 node whatsapp_bot/prepare_pairing_v7.js || { log "ERROR: WhatsApp pairing V7 preparation failed."; exit 1; }
 
