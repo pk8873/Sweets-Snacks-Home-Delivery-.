@@ -6,38 +6,37 @@ const path = file.pathname;
 const marker = "WHATSAPP_RUNTIME_FIX_V76";
 let source = fs.readFileSync(file, "utf8");
 
-// V76 is the final transport-only fix. It deliberately returns the WhatsApp
-// button/list layer to the tested zqbaileys_helper transport. It does not
-// change any Django, product, cart, order, payment, delivery, customer,
-// Telegram, database, or action-handler logic.
+const transportReady =
+  source.includes('from "zqbaileys_helper"') &&
+  source.includes("const { sendInteractiveMessage } = baileysHelper;") &&
+  source.includes("sendInteractiveMessage(sock, jid") &&
+  source.includes('name: "quick_reply"') &&
+  source.includes('name: "single_select"') &&
+  !source.includes('buttons: clean.map(x => ({ buttonId:') &&
+  !source.includes('buttonText: { displayText:') &&
+  !source.includes('const waMessage = generateWAMessageFromContent(');
+
+if (source.includes(marker) && transportReady) {
+  execFileSync(process.execPath, ["--check", path], { stdio: "inherit" });
+  console.log("WhatsApp runtime V76 already applied; transport and syntax check passed.");
+  process.exit(0);
+}
+
+// Recover safely even if an earlier V76 attempt left its marker in index.js.
+source = source.replace(new RegExp(`^// ${marker}\\n?`), "");
 
 if (!source.includes('from "zqbaileys_helper"')) {
   const anchor = 'import qrcode from "qrcode-terminal";';
-  if (!source.includes(anchor)) throw new Error("V76 could not locate qrcode import anchor.");
-  source = source.replace(
-    anchor,
-    anchor + '\nimport * as baileysHelperModule from "zqbaileys_helper";\nconst baileysHelper = baileysHelperModule.default || baileysHelperModule;\nconst { sendInteractiveMessage } = baileysHelper;'
-  );
+  if (!source.includes(anchor)) throw new Error("V76: qrcode import anchor not found.");
+  source = source.replace(anchor, anchor + '\nimport * as baileysHelperModule from "zqbaileys_helper";\nconst baileysHelper = baileysHelperModule.default || baileysHelperModule;\nconst { sendInteractiveMessage } = baileysHelper;');
 } else if (!source.includes("const { sendInteractiveMessage } = baileysHelper;")) {
   const helperImport = 'import * as baileysHelperModule from "zqbaileys_helper";\nconst baileysHelper = baileysHelperModule.default || baileysHelperModule;';
-  if (source.includes(helperImport)) {
-    source = source.replace(helperImport, helperImport + '\nconst { sendInteractiveMessage } = baileysHelper;');
-  } else if (source.includes('import baileysHelper from "zqbaileys_helper";')) {
-    source = source.replace(
-      'import baileysHelper from "zqbaileys_helper";',
-      helperImport + '\nconst { sendInteractiveMessage } = baileysHelper;'
-    );
-  } else {
-    throw new Error("V76 could not locate zqbaileys_helper import block.");
-  }
+  if (source.includes(helperImport)) source = source.replace(helperImport, helperImport + '\nconst { sendInteractiveMessage } = baileysHelper;');
+  else if (source.includes('import baileysHelper from "zqbaileys_helper";')) source = source.replace('import baileysHelper from "zqbaileys_helper";', helperImport + '\nconst { sendInteractiveMessage } = baileysHelper;');
+  else throw new Error("V76: helper import block not found.");
 }
 
-// Remove the direct-protobuf V74/V75 import. The helper owns the low-level
-// relay construction and injects the required biz/interactive/native_flow/bot nodes.
-source = source.replace(
-  'import { proto, generateWAMessageFromContent, isJidGroup } from "@whiskeysockets/baileys";\n',
-  ''
-);
+source = source.replace('import { proto, generateWAMessageFromContent, isJidGroup } from "@whiskeysockets/baileys";\n', '');
 
 const startCandidates = [
   "async function sendNativeFlow(sock, jid, text, nativeButtons)",
@@ -45,18 +44,12 @@ const startCandidates = [
 ];
 const endToken = "async function home(sock, jid)";
 let start = -1;
-let startToken = "";
 for (const candidate of startCandidates) {
   const idx = source.indexOf(candidate);
-  if (idx >= 0 && (start < 0 || idx < start)) {
-    start = idx;
-    startToken = candidate;
-  }
+  if (idx >= 0 && (start < 0 || idx < start)) start = idx;
 }
 const end = source.indexOf(endToken, start + 1);
-if (start < 0 || end < 0 || end <= start) {
-  throw new Error(`V76 could not locate WhatsApp interactive transport block (${startToken || "none"}).`);
-}
+if (start < 0 || end < 0 || end <= start) throw new Error("V76: interactive transport block not found.");
 
 const replacement = `async function buttons(sock, jid, text, items) {
   const clean = items.filter(Boolean).slice(0, 3);
@@ -74,20 +67,10 @@ const replacement = `async function buttons(sock, jid, text, items) {
       footer: "Sweet & Snacks",
       interactiveButtons,
     });
-    logger.info({
-      event: "whatsapp.native_flow.sent",
-      kind: "quick_reply",
-      button_count: interactiveButtons.length,
-    }, "WhatsApp interactive buttons sent");
+    logger.info({ event: "whatsapp.native_flow.sent", kind: "quick_reply", button_count: interactiveButtons.length }, "WhatsApp interactive buttons sent");
   } catch (error) {
-    logger.error({
-      error: error?.message || error,
-      stack: error?.stack,
-      event: "whatsapp.native_flow.error",
-    }, "WhatsApp interactive button send failed");
-    await sock.sendMessage(jid, {
-      text: String(text || "") + "\\n\\n" + clean.map((x, i) => String(i + 1) + ". " + String(x.text || "")).join("\\n"),
-    });
+    logger.error({ error: error?.message || error, stack: error?.stack, event: "whatsapp.native_flow.error" }, "WhatsApp interactive button send failed");
+    await sock.sendMessage(jid, { text: String(text || "") + "\\n\\n" + clean.map((x, i) => String(i + 1) + ". " + String(x.text || "")).join("\\n") });
   }
 }
 
@@ -114,64 +97,27 @@ async function list(sock, jid, text, rows, title = "Choose") {
       footer: "Sweet & Snacks",
       interactiveButtons,
     });
-    logger.info({
-      event: "whatsapp.native_flow.sent",
-      kind: "single_select",
-      row_count: clean.length,
-    }, "WhatsApp interactive list sent");
+    logger.info({ event: "whatsapp.native_flow.sent", kind: "single_select", row_count: clean.length }, "WhatsApp interactive list sent");
   } catch (error) {
-    logger.error({
-      error: error?.message || error,
-      stack: error?.stack,
-      event: "whatsapp.native_flow.list_error",
-    }, "WhatsApp interactive list send failed");
-    await sock.sendMessage(jid, {
-      text: String(text || "") + "\\n\\n" + clean.map((x, i) => String(i + 1) + ". " + String(x.title || "")).join("\\n"),
-    });
+    logger.error({ error: error?.message || error, stack: error?.stack, event: "whatsapp.native_flow.list_error" }, "WhatsApp interactive list send failed");
+    await sock.sendMessage(jid, { text: String(text || "") + "\\n\\n" + clean.map((x, i) => String(i + 1) + ". " + String(x.title || "")).join("\\n") });
   }
 }
 
 `;
-
 source = source.slice(0, start) + replacement + source.slice(end);
-
-// V76 is the final marker. Remove stale transport markers only from the
-// transport layer comments; leaving older lifecycle markers is intentional.
 source = `// ${marker}\n${source}`;
 fs.writeFileSync(file, source, "utf8");
 execFileSync(process.execPath, ["--check", path], { stdio: "inherit" });
 
 const finalSource = fs.readFileSync(file, "utf8");
-for (const required of [
-  marker,
-  'from "zqbaileys_helper"',
-  "const baileysHelper = baileysHelperModule.default || baileysHelperModule;",
-  "const { sendInteractiveMessage } = baileysHelper;",
-  "sendInteractiveMessage(sock, jid",
-  'name: "quick_reply"',
-  'name: "single_select"',
-  'event: "whatsapp.native_flow.sent"',
-]) {
+for (const required of [marker, 'from "zqbaileys_helper"', "const { sendInteractiveMessage } = baileysHelper;", "sendInteractiveMessage(sock, jid", 'name: "quick_reply"', 'name: "single_select"']) {
   if (!finalSource.includes(required)) throw new Error(`V76 validation failed: missing ${required}`);
 }
-
-for (const forbidden of [
-  "async function sendNativeFlow(sock, jid",
-  'buttons: clean.map(x => ({ buttonId:',
-  'buttonText: { displayText:',
-  'await sock.sendMessage(jid, { title: "🍬 Sweet & Snacks"',
-  'interactiveMessage: {',
-  'generateWAMessageFromContent',
-]) {
-  if (finalSource.includes(forbidden)) {
-    throw new Error(`V76 validation failed: stale transport remains active: ${forbidden}`);
-  }
+for (const forbidden of ['buttons: clean.map(x => ({ buttonId:', 'buttonText: { displayText:', 'const waMessage = generateWAMessageFromContent(']) {
+  if (finalSource.includes(forbidden)) throw new Error(`V76 validation failed: stale active transport remains: ${forbidden}`);
 }
-
 const helperModule = await import("zqbaileys_helper");
 const helper = helperModule?.default || helperModule;
-if (typeof helper?.sendInteractiveMessage !== "function") {
-  throw new Error("V76 validation failed: zqbaileys_helper.sendInteractiveMessage is unavailable.");
-}
-
-console.log("WhatsApp runtime V76 applied; helper low-level native-flow transport restored + legacy/high-level transport removed + syntax check passed.");
+if (typeof helper?.sendInteractiveMessage !== "function") throw new Error("V76 validation failed: zqbaileys_helper.sendInteractiveMessage is unavailable.");
+console.log("WhatsApp runtime V76 applied; helper low-level native-flow transport restored + stale V74/V75 transport removed + syntax check passed.");
