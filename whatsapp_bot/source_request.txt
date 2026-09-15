@@ -1,0 +1,1 @@
+Please fetch whatsapp_bot/index.js before applying V24. This marker is temporary.
