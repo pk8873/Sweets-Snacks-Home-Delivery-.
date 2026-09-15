@@ -52,6 +52,7 @@ log "WhatsApp pairing mode: PHONE PAIRING CODE ONLY (QR DISABLED)."
 log "WhatsApp runtime V61 + V62 + V63 + V64 + V67 + V68 + V69 + V70 + V71 + V72 + V73 + V76 + V77 + V78 + V79 + V80 enabled."
 log "WhatsApp interactive button fix is active: helper low-level Native Flow relay; no Django/business/action logic changes."
 log "WhatsApp button transport fix verified: V77 helper relay will be used instead of legacy sendMessage buttons."
+log "WhatsApp button-fix redeploy target: verified helper Native Flow transport on current main."
 
 log "Starting Django web server..."
 gunicorn config.asgi:application -k uvicorn.workers.UvicornWorker --bind 0.0.0.0:${PORT} &
