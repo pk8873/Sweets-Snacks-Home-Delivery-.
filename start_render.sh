@@ -29,7 +29,6 @@ node whatsapp_bot/prepare_whatsapp_runtime_v32.js || { log "ERROR: WhatsApp runt
 node whatsapp_bot/prepare_whatsapp_runtime_v33.js || { log "ERROR: WhatsApp runtime V33 preparation failed."; exit 1; }
 node whatsapp_bot/prepare_whatsapp_runtime_v34.js || { log "ERROR: WhatsApp runtime V34 preparation failed."; exit 1; }
 node whatsapp_bot/prepare_whatsapp_runtime_v35.js || { log "ERROR: WhatsApp runtime V35 preparation failed."; exit 1; }
-# V36 fixes the handler temporal-dead-zone bug introduced by the V33 state relocation.
 node whatsapp_bot/prepare_whatsapp_runtime_v36.js || { log "ERROR: WhatsApp runtime V36 preparation failed."; exit 1; }
 node whatsapp_bot/prepare_whatsapp_runtime_v37.js || { log "ERROR: WhatsApp runtime V37 preparation failed."; exit 1; }
 node whatsapp_bot/prepare_whatsapp_runtime_v38.js || { log "ERROR: WhatsApp runtime V38 preparation failed."; exit 1; }
@@ -39,16 +38,14 @@ node whatsapp_bot/prepare_whatsapp_runtime_v41.js || { log "ERROR: WhatsApp runt
 node whatsapp_bot/prepare_whatsapp_runtime_v43.js || { log "ERROR: WhatsApp runtime V43 preparation failed."; exit 1; }
 node whatsapp_bot/prepare_whatsapp_runtime_v44.js || { log "ERROR: WhatsApp runtime V44 preparation failed."; exit 1; }
 node whatsapp_bot/prepare_whatsapp_runtime_v45.js || { log "ERROR: WhatsApp runtime V45 validation failed."; exit 1; }
-# V46 is the pairing lifecycle guard: internal registration handshake, 429 cooldown,
-# and reconnect protection prevent repeated pairing requests from hammering WhatsApp.
 node whatsapp_bot/prepare_whatsapp_runtime_v46.js || { log "ERROR: WhatsApp runtime V46 preparation failed."; exit 1; }
-# V47 is retained for source compatibility; V48 immediately removes its QR fallback output.
 node whatsapp_bot/prepare_whatsapp_runtime_v47.js || { log "ERROR: WhatsApp runtime V47 preparation failed."; exit 1; }
-# V48 enforces the user's required pairing-code-only experience: never render a QR.
 node whatsapp_bot/prepare_whatsapp_runtime_v48.js || { log "ERROR: WhatsApp runtime V48 preparation failed."; exit 1; }
-# V49 persists WhatsApp's 429 pairing cooldown in PostgreSQL so Render restarts
-# cannot immediately hammer the pairing endpoint again.
 node whatsapp_bot/prepare_whatsapp_runtime_v49.js || { log "ERROR: WhatsApp runtime V49 preparation failed."; exit 1; }
+# V50 prevents repeated Render-side WhatsApp disconnect/re-pair loops.
+# 515 is handled as a socket restart while preserving PostgreSQL auth state.
+# 401/logout no longer deletes the stored session automatically.
+node whatsapp_bot/prepare_whatsapp_runtime_v50.js || { log "ERROR: WhatsApp runtime V50 preparation failed."; exit 1; }
 node --check whatsapp_bot/index.js || { log "ERROR: WhatsApp source syntax check failed."; exit 1; }
 
 log "Starting Django web server..."
