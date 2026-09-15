@@ -24,8 +24,11 @@ node whatsapp_bot/prepare_pairing_v7.js || { log "ERROR: WhatsApp pairing V7 pre
 # runtime mutators are intentionally no longer executed; keeping dozens of
 # sequential source rewrites was the main reason Render builds became fragile.
 node whatsapp_bot/prepare_whatsapp_runtime_v61.js || { log "ERROR: WhatsApp runtime V61 preparation failed."; exit 1; }
+# V62 keeps the PostgreSQL-persisted WhatsApp session across Render restarts
+# and requests a pairing code only when the account is genuinely unregistered.
+node whatsapp_bot/prepare_whatsapp_runtime_v62.js || { log "ERROR: WhatsApp runtime V62 preparation failed."; exit 1; }
 node --check whatsapp_bot/index.js || { log "ERROR: WhatsApp source syntax check failed."; exit 1; }
-log "WhatsApp runtime V61 is enabled; legacy runtime patch chain is disabled."
+log "WhatsApp runtime V61 + V62 are enabled; legacy runtime patch chain is disabled."
 
 log "Starting Django web server..."
 gunicorn config.asgi:application -k uvicorn.workers.UvicornWorker --bind 0.0.0.0:${PORT} &
