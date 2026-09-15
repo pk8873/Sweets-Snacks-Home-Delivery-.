@@ -16,12 +16,23 @@ if (source.includes(marker)) {
 // rejected by the pinned Baileys fork with "Invalid media type". V51 builds
 // the protobuf InteractiveMessage directly and relays it with the required
 // bot + biz native-flow nodes.
-const importLine = 'import makeWASocket, { Browsers, DisconnectReason, fetchLatestWaWebVersion } from "@whiskeysockets/baileys";';
-const replacementImport = 'import makeWASocket, { Browsers, DisconnectReason, fetchLatestWaWebVersion, proto, generateWAMessageFromContent } from "@whiskeysockets/baileys";';
-if (!source.includes(importLine)) {
+//
+// Do not depend on one exact import ordering: earlier runtime patches may have
+// changed the Baileys named-import list. Preserve every existing named export
+// and add only the two V51 dependencies when they are missing.
+const importMatch = source.match(/import\s+makeWASocket,\s*\{([\s\S]*?)\}\s+from\s+["']@whiskeysockets\/baileys["'];/);
+if (!importMatch) {
   throw new Error("V51 could not locate the Baileys import line.");
 }
-source = source.replace(importLine, replacementImport);
+const existingImports = importMatch[1]
+  .split(",")
+  .map(x => x.trim())
+  .filter(Boolean);
+for (const name of ["proto", "generateWAMessageFromContent"]) {
+  if (!existingImports.includes(name)) existingImports.push(name);
+}
+const replacementImport = `import makeWASocket, { ${existingImports.join(", ")} } from "@whiskeysockets/baileys";`;
+source = source.replace(importMatch[0], replacementImport);
 
 const buttonsStart = source.indexOf("async function buttons(");
 const listStart = source.indexOf("async function list(", buttonsStart);
@@ -122,7 +133,7 @@ async function buttons(sock, jid, text, items) {
     logger.info({ event: "whatsapp.native_flow.sent", kind: "buttons", count: clean.length }, "Native Flow buttons sent");
   } catch (error) {
     logger.error({ error: error?.message || error }, "Native Flow button send failed");
-    const fallback = [String(text || ""), "", clean.map((x, i) => String(i + 1) + ". " + String(x.text || "")).join("\n")].join("\n");
+    const fallback = [String(text || ""), "", clean.map((x, i) => String(i + 1) + ". " + String(x.text || "")).join("\\n")].join("\\n");
     await sock.sendMessage(jid, { text: fallback });
   }
 }
@@ -154,7 +165,7 @@ async function list(sock, jid, text, rows, title = "Choose") {
     logger.info({ event: "whatsapp.native_flow.sent", kind: "single_select", count: clean.length }, "Native Flow list sent");
   } catch (error) {
     logger.error({ error: error?.message || error }, "Native Flow list send failed");
-    const fallback = [String(text || ""), "", clean.map((x, i) => String(i + 1) + ". " + String(x.title || "")).join("\n")].join("\n");
+    const fallback = [String(text || ""), "", clean.map((x, i) => String(i + 1) + ". " + String(x.title || "")).join("\\n")].join("\\n");
     await sock.sendMessage(jid, { text: fallback });
   }
 }
