@@ -42,6 +42,7 @@ node --check whatsapp_bot/index.js || { log "ERROR: WhatsApp source syntax check
 node --input-type=module -e 'import fs from "node:fs"; const s=fs.readFileSync("whatsapp_bot/index.js","utf8"); const required=["WHATSAPP_RUNTIME_FIX_V76","sendInteractiveMessage(sock, jid","name: \"quick_reply\"","name: \"single_select\"","zqbaileys_helper"]; for (const x of required) { if (!s.includes(x)) throw new Error(`WhatsApp V76 runtime verification failed: ${x}`); } const forbidden=["async function sendNativeFlow(sock, jid","buttons: clean.map(x => ({ buttonId:","buttonText: { displayText:","generateWAMessageFromContent","interactiveMessage: {"]; for (const x of forbidden) { if (s.includes(x)) throw new Error(`WhatsApp V76 runtime verification failed: stale transport ${x}`); } if (s.includes("shouldSyncHistoryMessage: () => false")) throw new Error("WhatsApp V76 runtime verification failed: history-sync suppression is still active"); console.log("WhatsApp V76 helper interactive transport verification passed");' || { log "ERROR: WhatsApp runtime verification failed."; exit 1; }
 
 log "WhatsApp runtime V61 + V62 + V63 + V64 + V67 + V68 + V69 + V70 + V71 + V72 + V73 + V76 enabled; V76 is the final active interactive transport layer."
+log "WhatsApp interactive button fix is active: helper low-level Native Flow relay; no Django/business/action logic changes."
 
 log "Starting Django web server..."
 gunicorn config.asgi:application -k uvicorn.workers.UvicornWorker --bind 0.0.0.0:${PORT} &
