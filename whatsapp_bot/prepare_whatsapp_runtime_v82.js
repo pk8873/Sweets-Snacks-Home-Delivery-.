@@ -6,17 +6,29 @@ const path = file.pathname;
 const marker = "WHATSAPP_RUNTIME_FIX_V82";
 let source = fs.readFileSync(file, "utf8");
 
+// V82 remains idempotent for the transport itself, but if an already-patched
+// deployment still contains mdPatch:false, upgrade that exact transport in place.
 if (source.includes(marker)) {
+  const startToken = "async function buttons(sock, jid, text, items)";
+  const endToken = "async function home(sock, jid)";
+  const start = source.indexOf(startToken);
+  const end = source.indexOf(endToken, start + startToken.length);
+  if (start >= 0 && end > start) {
+    const active = source.slice(start, end);
+    if (active.includes("sendInteractiveMessage(sock, jid") && active.includes("mdPatch: false")) {
+      source = source.slice(0, start) + active.replace(/\{ mdPatch: false \}/g, "{ mdPatch: true }") + source.slice(end);
+      fs.writeFileSync(file, source, "utf8");
+      console.log("WhatsApp runtime V82 compatibility upgrade applied: mdPatch enabled.");
+    }
+  }
   execFileSync(process.execPath, ["--check", path], { stdio: "inherit" });
-  console.log("WhatsApp runtime V82 already applied; syntax check passed.");
   process.exit(0);
 }
 
 // V82 is intentionally limited to the WhatsApp interactive-message transport.
 // It preserves all existing action IDs and Django/business logic.
-// The helper's MD compatibility patch is disabled because the V61 transport
-// already proved that the raw native-flow protobuf + relay path is the desired
-// wire format for this pinned Baileys runtime.
+// The zqbaileys_helper low-level relay is used because the normal Baileys
+// sendMessage path rejects interactiveMessage as "Invalid media type".
 const startToken = "async function buttons(sock, jid, text, items)";
 const endToken = "async function home(sock, jid)";
 const start = source.indexOf(startToken);
@@ -33,7 +45,7 @@ if (!active.includes("sendInteractiveMessage(sock, jid")) {
 const patched = active
   .replace(
     /sendInteractiveMessage\(sock, jid, \{([\s\S]*?)\}\);/g,
-    "sendInteractiveMessage(sock, jid, {$1}, { mdPatch: false });"
+    "sendInteractiveMessage(sock, jid, {$1}, { mdPatch: true });"
   );
 
 if (patched === active) {
@@ -59,7 +71,7 @@ for (const required of [
   'import baileysHelper from "zqbaileys_helper";',
   "const { sendInteractiveMessage } = baileysHelper;",
   "sendInteractiveMessage(sock, jid",
-  "mdPatch: false",
+  "mdPatch: true",
   'name: "quick_reply"',
   'name: "single_select"',
 ]) {
@@ -73,6 +85,7 @@ for (const forbidden of [
   "buttonText: { displayText:",
   'await sock.sendMessage(jid, { title: "🍬 Sweet & Snacks"',
   "interactiveMessage: {",
+  "mdPatch: false",
 ]) {
   if (finalActive.includes(forbidden)) {
     throw new Error(`V82 validation failed: incompatible transport remains: ${forbidden}`);
@@ -85,4 +98,4 @@ if (typeof helper?.sendInteractiveMessage !== "function") {
   throw new Error("V82 validation failed: zqbaileys_helper.sendInteractiveMessage is unavailable.");
 }
 
-console.log("WhatsApp runtime V82 applied; helper low-level Native Flow relay enforced with mdPatch disabled, legacy transport removed, and syntax check passed.");
+console.log("WhatsApp runtime V82 applied; helper low-level Native Flow relay with MD compatibility enabled, legacy transport removed, and syntax check passed.");
