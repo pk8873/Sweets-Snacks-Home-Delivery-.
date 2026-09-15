@@ -1,0 +1,1 @@
+V24 targeted WhatsApp button transport fix. Uses Baileys proto + generateWAMessageFromContent + relayMessage. No business logic changes.
