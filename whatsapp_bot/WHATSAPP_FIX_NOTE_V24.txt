@@ -1,1 +1,0 @@
-Temporary placeholder file created while preparing the WhatsApp button fix. This file is not part of the application runtime and should be removed before release.
