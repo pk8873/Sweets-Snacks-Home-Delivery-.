@@ -16,6 +16,7 @@
     "@whiskeysockets/baileys": "7.0.0-rc14",
     "dotenv": "^17.2.2",
     "pg": "^8.16.3",
+    "pino": "^10.0.0",
     "qrcode-terminal": "^0.12.0",
     "zqbaileys_helper": "git+https://github.com/zqdevelopers/zq_baileys_helper.git#3c82153fdc1c07eef2f342fb3c80b8b32839e4ee"
   }
