@@ -12,11 +12,11 @@ if (source.includes(marker)) {
   process.exit(0);
 }
 
-// V64 fixes the exact Render failure: the Baileys sendMessage/generate path
-// rejects interactiveMessage as an unsupported media type. The helper uses
-// the supported low-level relay path and injects the required WhatsApp biz
-// native-flow nodes. Only the button/list transport is replaced; all business
-// logic and action IDs remain unchanged.
+// V64 fixes the Render failure where the normal Baileys content path rejects
+// interactiveMessage as an unsupported media type. zqbaileys_helper uses the
+// low-level relay path and injects the required WhatsApp native-flow nodes.
+// Only the button/list transport is replaced; all business logic and action
+// IDs remain unchanged.
 const importNeedle = 'import qrcode from "qrcode-terminal";';
 if (!source.includes(importNeedle)) {
   throw new Error("V64 could not locate the qrcode import boundary.");
@@ -53,10 +53,8 @@ const replacement = `async function buttons(sock, jid, text, items) {
     logger.info({ event: "whatsapp.native_flow.sent", kind: "quick_reply", button_count: interactiveButtons.length }, "WhatsApp interactive buttons sent");
   } catch (error) {
     logger.error({ error: error?.message || error, stack: error?.stack }, "WhatsApp interactive button send failed");
-    // Keep the existing user-facing fallback so a transport problem never
-    // breaks the rest of the bot/business flow.
     await sock.sendMessage(jid, {
-      text: `${String(text || "")}\\n\\n${clean.map((x, i) => `${i + 1}. ${String(x.text || "")}`).join("\\n")}`,
+      text: String(text || "") + "\\n\\n" + clean.map((x, i) => String(i + 1) + ". " + String(x.text || "")).join("\\n"),
     });
   }
 }
@@ -88,7 +86,7 @@ async function list(sock, jid, text, rows, title = "Choose") {
   } catch (error) {
     logger.error({ error: error?.message || error, stack: error?.stack }, "WhatsApp interactive list send failed");
     await sock.sendMessage(jid, {
-      text: `${String(text || "")}\\n\\n${clean.map((x, i) => `${i + 1}. ${String(x.title || "")}`).join("\\n")}`,
+      text: String(text || "") + "\\n\\n" + clean.map((x, i) => String(i + 1) + ". " + String(x.title || "")).join("\\n"),
     });
   }
 }
