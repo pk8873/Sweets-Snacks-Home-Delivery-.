@@ -6,19 +6,25 @@ const path = file.pathname;
 const marker = "WHATSAPP_RUNTIME_FIX_V76";
 let source = fs.readFileSync(file, "utf8");
 
-const transportReady =
-  source.includes('from "zqbaileys_helper"') &&
-  source.includes("const { sendInteractiveMessage } = baileysHelper;") &&
-  source.includes("sendInteractiveMessage(sock, jid") &&
-  source.includes('name: "quick_reply"') &&
-  source.includes('name: "single_select"') &&
-  !source.includes('buttons: clean.map(x => ({ buttonId:') &&
-  !source.includes('buttonText: { displayText:') &&
-  !source.includes('const waMessage = generateWAMessageFromContent(');
+const hasActiveHelperTransport = () => {
+  const start = source.indexOf("async function buttons(sock, jid, text, items)");
+  const end = source.indexOf("async function home(sock, jid)", start + 1);
+  if (start < 0 || end < 0 || end <= start) return false;
+  const block = source.slice(start, end);
+  return block.includes("sendInteractiveMessage(sock, jid") &&
+    block.includes('name: "quick_reply"') &&
+    block.includes('name: "single_select"') &&
+    !block.includes("buttons: clean.map(x => ({ buttonId:") &&
+    !block.includes("buttonText: { displayText:") &&
+    !block.includes('await sock.sendMessage(jid, { title: "🍬 Sweet & Snacks"');
+};
 
-if (source.includes(marker) && transportReady) {
+if (source.includes(marker) && hasActiveHelperTransport()) {
   execFileSync(process.execPath, ["--check", path], { stdio: "inherit" });
-  console.log("WhatsApp runtime V76 already applied; transport and syntax check passed.");
+  const helperModule = await import("zqbaileys_helper");
+  const helper = helperModule?.default || helperModule;
+  if (typeof helper?.sendInteractiveMessage !== "function") throw new Error("V76 validation failed: zqbaileys_helper.sendInteractiveMessage is unavailable.");
+  console.log("WhatsApp runtime V76 already applied; active transport and syntax check passed.");
   process.exit(0);
 }
 
@@ -35,8 +41,6 @@ if (!source.includes('from "zqbaileys_helper"')) {
   else if (source.includes('import baileysHelper from "zqbaileys_helper";')) source = source.replace('import baileysHelper from "zqbaileys_helper";', helperImport + '\nconst { sendInteractiveMessage } = baileysHelper;');
   else throw new Error("V76: helper import block not found.");
 }
-
-source = source.replace('import { proto, generateWAMessageFromContent, isJidGroup } from "@whiskeysockets/baileys";\n', '');
 
 const startCandidates = [
   "async function sendNativeFlow(sock, jid, text, nativeButtons)",
@@ -114,10 +118,14 @@ const finalSource = fs.readFileSync(file, "utf8");
 for (const required of [marker, 'from "zqbaileys_helper"', "const { sendInteractiveMessage } = baileysHelper;", "sendInteractiveMessage(sock, jid", 'name: "quick_reply"', 'name: "single_select"']) {
   if (!finalSource.includes(required)) throw new Error(`V76 validation failed: missing ${required}`);
 }
-for (const forbidden of ['buttons: clean.map(x => ({ buttonId:', 'buttonText: { displayText:', 'const waMessage = generateWAMessageFromContent(']) {
-  if (finalSource.includes(forbidden)) throw new Error(`V76 validation failed: stale active transport remains: ${forbidden}`);
+const finalStart = finalSource.indexOf("async function buttons(sock, jid, text, items)");
+const finalEnd = finalSource.indexOf("async function home(sock, jid)", finalStart + 1);
+if (finalStart < 0 || finalEnd < 0 || finalEnd <= finalStart) throw new Error("V76 validation failed: active transport block not found.");
+const activeTransport = finalSource.slice(finalStart, finalEnd);
+for (const forbidden of ["buttons: clean.map(x => ({ buttonId:", "buttonText: { displayText:", 'await sock.sendMessage(jid, { title: "🍬 Sweet & Snacks"']) {
+  if (activeTransport.includes(forbidden)) throw new Error(`V76 validation failed: active legacy transport remains: ${forbidden}`);
 }
 const helperModule = await import("zqbaileys_helper");
 const helper = helperModule?.default || helperModule;
 if (typeof helper?.sendInteractiveMessage !== "function") throw new Error("V76 validation failed: zqbaileys_helper.sendInteractiveMessage is unavailable.");
-console.log("WhatsApp runtime V76 applied; helper low-level native-flow transport restored + stale V74/V75 transport removed + syntax check passed.");
+console.log("WhatsApp runtime V76 applied; helper low-level native-flow transport enforced + active legacy transport removed + syntax check passed.");
