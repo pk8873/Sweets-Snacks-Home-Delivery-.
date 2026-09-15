@@ -65,6 +65,9 @@ node whatsapp_bot/prepare_whatsapp_runtime_v55.js || { log "ERROR: WhatsApp runt
 # V56 is a fail-fast validation that guarantees the V55 low-level Native Flow
 # relay is the active sender before the WhatsApp process starts.
 node whatsapp_bot/prepare_whatsapp_runtime_v56.js || { log "ERROR: WhatsApp runtime V56 validation failed."; exit 1; }
+# V57 fixes the remaining Native Flow relay metadata only. It adds the
+# required business/native-flow attributes while preserving all handlers.
+node whatsapp_bot/prepare_whatsapp_runtime_v57.js || { log "ERROR: WhatsApp runtime V57 preparation failed."; exit 1; }
 node --check whatsapp_bot/index.js || { log "ERROR: WhatsApp source syntax check failed."; exit 1; }
 
 log "Starting Django web server..."
