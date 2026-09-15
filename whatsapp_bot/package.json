@@ -13,10 +13,10 @@
   },
   "dependencies": {
     "@hapi/boom": "^10.0.1",
-    "@whiskeysockets/baileys": "github:jules2002guy/Baileys#6477c390c2e32231102732d1b5fdb1d07c18ce90",
+    "@whiskeysockets/baileys": "7.0.0-rc14",
     "dotenv": "^17.2.2",
-    "pino": "^10.0.0",
     "pg": "^8.16.3",
+    "pino": "^10.0.0",
     "qrcode-terminal": "^0.12.0"
   }
 }
